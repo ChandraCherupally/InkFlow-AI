@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="AI-powered technical content orchestration using LangGraph."
+    >
+
+    <title>{{ page_title }}</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/style.css') }}"
+    >
+</head>
+
+<body>
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar">
+            <a href="/" class="brand">
+                <div class="brand-logo">✦</div>
+
+                <div>
+                    <strong>InkFlow-AI</strong>
+                    <small>AI Technical Content Orchestrator</small>
+                </div>
+            </a>
+
+            <button
+                id="newRunButton"
+                class="new-run-button"
+                type="button"
+            >
+                <span>＋</span>
+                New Workflow
+            </button>
+
+            <div class="workflow-menu">
+                <p>Workflow</p>
+
+                <div class="workflow-item">
+                    <span>01</span>
+                    Route Request
+                </div>
+
+                <div class="workflow-item">
+                    <span>02</span>
+                    Retrieve Evidence
+                </div>
+
+                <div class="workflow-item">
+                    <span>03</span>
+                    Build Article Plan
+                </div>
+
+                <div class="workflow-item">
+                    <span>04</span>
+                    Generate Sections
+                </div>
+
+                <div class="workflow-item">
+                    <span>05</span>
+                    Assemble Markdown
+                </div>
+
+                <div class="workflow-item">
+                    <span>06</span>
+                    Generate Images
+                </div>
+            </div>
+
+            <!-- Execution Summary Sidebar Card -->
+            <div class="execution-summary-card" id="executionSummaryCard">
+                <p class="summary-title">Execution Summary</p>
+                <div class="summary-grid">
+                    <div class="summary-item"><span>🟢 Workflow Status</span><strong id="sumStatus">Ready</strong></div>
+                    <div class="summary-item"><span>💲 Total Cost</span><strong id="sumCost">$0.0000</strong></div>
+                    <div class="summary-item"><span>🎟 Total Tokens</span><strong id="sumTokens">0</strong></div>
+                    <div class="summary-item"><span>⚡ Average Latency</span><strong id="sumAvgLatency">0.0ms</strong></div>
+                    <div class="summary-item"><span>🔥 Most Expensive Node</span><strong id="sumTopNode">-</strong></div>
+                    <div class="summary-item"><span>🧠 Most Expensive Model</span><strong id="sumTopModel">-</strong></div>
+                    <div class="summary-item"><span>🐢 Slowest Node</span><strong id="sumSlowNode">-</strong></div>
+                    <div class="summary-item"><span>📄 Sections Generated</span><strong id="sumSections">0</strong></div>
+                    <div class="summary-item"><span>🖼 Images Generated</span><strong id="sumImages">0</strong></div>
+                    <div class="summary-item"><span>🔍 Sources Retrieved</span><strong id="sumSources">0</strong></div>
+                    <div class="summary-item"><span>🤖 Unique Models Used</span><strong id="sumModels">0</strong></div>
+                    <div class="summary-item"><span>⚠️ Fallback Count</span><strong id="sumFallbacks">0</strong></div>
+                    <div class="summary-item"><span>🛡 Guardrail Violations</span><strong id="sumViolations">0</strong></div>
+                </div>
+
+                <details class="execution-details-toggle">
+                    <summary>▶ Execution Details</summary>
+                    <div class="details-table-wrapper">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr>
+                                    <th>Node</th>
+                                    <th>Provider</th>
+                                    <th>Model</th>
+                                    <th>Prompt Tokens</th>
+                                    <th>Completion Tokens</th>
+                                    <th>Total Tokens</th>
+                                    <th>Latency</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="metricsTableBody">
+                                <tr><td colspan="9" class="empty-row">No metrics recorded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+
+            <div class="server-status">
+                <div
+                    id="healthDot"
+                    class="health-dot"
+                ></div>
+
+                <div>
+                    <strong id="healthText">
+                        Checking status
+                    </strong>
+
+                    <small>
+                        FastAPI + LangGraph + OpenAI
+                    </small>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <span class="eyebrow">
+                        Multi-Agent Content Orchestration
+                    </span>
+
+                    <h1>
+                        Generate Production-Ready Technical Content
+                    </h1>
+                </div>
+
+                <div
+                    id="runBadge"
+                    class="run-badge"
+                >
+                    Ready
+                </div>
+            </header>
+
+            <section class="composer-card">
+                <div class="composer-heading">
+                    <div class="composer-icon">✦</div>
+
+                    <div>
+                        <h2>
+                            What technical topic should InkFlow-AI create?
+                        </h2>
+
+                        <p>
+                            Observe the complete orchestration pipeline from routing through research, planning, writing, image generation, and final markdown assembly.
+                        </p>
+                    </div>
+                </div>
+
+                <form id="runForm">
+                    <textarea
+                        id="topicInput"
+                        maxlength="1000"
+                        rows="4"
+                        required
+                        placeholder="Example: Build a production-ready RAG system with LangGraph, PostgreSQL and observability"
+                    ></textarea>
+
+                    <div class="composer-footer">
+                        <div class="examples">
+                            <button
+                                type="button"
+                                data-topic="Production-ready RAG with LangGraph"
+                            >
+                                Production RAG
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="Hybrid Search using BM25 + Vector Search"
+                            >
+                                Hybrid Search
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="LangGraph vs CrewAI"
+                            >
+                                LangGraph vs CrewAI
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="Building AI Agents with LiteLLM"
+                            >
+                                LiteLLM Agents
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="Production Multi-Agent Architecture"
+                            >
+                                Multi-Agent Architecture
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="Observability with LangSmith"
+                            >
+                                LangSmith Observability
+                            </button>
+
+                            <button
+                                type="button"
+                                data-topic="OpenAI GPT-5.5 Best Practices"
+                            >
+                                GPT Best Practices
+                            </button>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                id="cancelButton"
+                                class="cancel-button"
+                                type="button"
+                                hidden
+                            >
+                                Cancel Workflow
+                            </button>
+
+                            <button
+                                id="runButton"
+                                class="run-button"
+                                type="submit"
+                            >
+                                <span>Generate Content</span>
+                                <span>➜</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <section class="workspace-grid">
+                <article class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-label">
+                                Pipeline
+                            </span>
+
+                            <h2>Workflow Execution</h2>
+                        </div>
+
+                        <div
+                            id="progressRing"
+                            class="progress-ring"
+                            style="--progress: 0"
+                        >
+                            <span id="progressText">
+                                0%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div
+                        id="timeline"
+                        class="timeline"
+                    >
+                        <div
+                            id="activityEmpty"
+                            class="empty-state"
+                        >
+                            <div class="empty-icon">⌁</div>
+
+                            <h3>No workflow running</h3>
+
+                            <p>
+                                Pipeline execution steps and completed actions will appear here.
+                            </p>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-label">
+                                Planning
+                            </span>
+
+                            <h2>Execution Plan</h2>
+                        </div>
+
+                        <span
+                            id="taskCount"
+                            class="task-count"
+                        >
+                            0 tasks
+                        </span>
+                    </div>
+
+                    <div
+                        id="planMeta"
+                        class="plan-meta"
+                        hidden
+                    ></div>
+
+                    <div
+                        id="planList"
+                        class="plan-list"
+                    >
+                        <div
+                            id="planEmpty"
+                            class="empty-state"
+                        >
+                            <div class="empty-icon">☷</div>
+
+                            <h3>Waiting for planner output</h3>
+
+                            <p>
+                                Planner output will appear here.
+                            </p>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <section
+                id="resultCard"
+                class="panel-card result-card"
+            >
+                <div class="panel-header">
+                    <div>
+                        <span class="panel-label">
+                            Generated Output
+                        </span>
+
+                        <h2>Generated Markdown</h2>
+                    </div>
+
+                    <div class="result-actions">
+                        <button
+                            id="copyButton"
+                            class="secondary-button"
+                            type="button"
+                            disabled
+                        >
+                            Copy Markdown
+                        </button>
+
+                        <a
+                            id="downloadButton"
+                            class="secondary-button disabled"
+                            href="#"
+                            aria-disabled="true"
+                        >
+                            Download .md
+                        </a>
+                    </div>
+                </div>
+
+                <div class="result-tabs">
+                    <button
+                        id="previewTab"
+                        class="active"
+                        type="button"
+                    >
+                        Rendered Preview
+                    </button>
+
+                    <button
+                        id="markdownTab"
+                        type="button"
+                    >
+                        Markdown
+                    </button>
+                </div>
+
+                <div class="result-content">
+                    <div
+                        id="articlePreview"
+                        class="article-preview"
+                    >
+                        <div
+                            id="resultEmpty"
+                            class="empty-state"
+                        >
+                            <div class="empty-icon">✎</div>
+
+                            <h3>
+                                Generated Markdown will appear here
+                            </h3>
+
+                            <p>
+                                Generated Markdown will appear here after the workflow completes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <pre
+                        id="markdownOutput"
+                        class="markdown-output"
+                        hidden
+                    ></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div
+        id="toast"
+        class="toast"
+        role="status"
+        aria-live="polite"
+    ></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+    <script
+        src="{{ url_for('static', path='js/app.js') }}"
+        defer
+    ></script>
+</body>
+</html>
