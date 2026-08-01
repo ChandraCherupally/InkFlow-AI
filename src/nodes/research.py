@@ -38,10 +38,10 @@ def tavily_worker(state: dict) -> dict:
 
     metric = cost_tracker.create_metric(
         node_name="research",
-        provider=config.primary.provider,
-        model=config.primary.model,
+        provider="tavily",
+        model="tavily-search",
         latency_ms=latency_ms,
-        estimated_cost=0.001,
+        estimated_cost=0.008,
         status="completed",
     )
 

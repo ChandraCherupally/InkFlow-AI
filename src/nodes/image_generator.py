@@ -48,7 +48,7 @@ def image_worker(state: dict) -> dict:
             model=config.primary.model,
             latency_ms=latency_ms,
             images_generated=1,
-            resolution=spec.size or "1024x1024",
+            resolution=spec.size or "1792x1024",
             estimated_cost=0.04,
             status="completed",
         )

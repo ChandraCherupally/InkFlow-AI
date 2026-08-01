@@ -37,6 +37,17 @@ class ModelProfiles:
         temperature=1.0,
     )
 
+    # Gemini 2.5 Flash Lite (Router / Fast tasks via Vertex AI)
+    GEMINI_3_1_PRO_PREVIEW = ModelProfile(
+        provider=Providers.VERTEX_AI,
+        model="vertex_ai/gemini-3.1-pro-preview",
+        supports_structured_output=True,
+        supports_reasoning=False,
+        supports_streaming=True,
+        max_context_tokens=1048576,
+        temperature=1.0,
+    )
+
     # Gemini 2.5 Flash (Research / Markdown tasks via Vertex AI)
     GEMINI_2_5_FLASH = ModelProfile(
         provider=Providers.VERTEX_AI,

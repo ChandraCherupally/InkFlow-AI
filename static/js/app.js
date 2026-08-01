@@ -34,12 +34,18 @@ let finalMarkdown = "";
 let totalTasks = 0;
 let completedTasks = 0;
 
+let currentProgress = 0;
+
 const stageProgress = {
     router: 10,
-    research: 25,
-    orchestrator: 35,
-    workers: 75,
-    reducer: 100,
+    research: 20,
+    planner: 35,
+    writing: 75,
+    editor: 80,
+    formatter: 85,
+    image_planner: 90,
+    image_generator: 95,
+    completed: 100,
 };
 
 
@@ -64,17 +70,27 @@ function showToast(message) {
 
 
 function updateProgress(value) {
-    const progress = Math.max(
-        0,
-        Math.min(100, Math.round(value)),
-    );
+    const val = Math.max(0, Math.min(100, Math.round(value)));
+    if (val >= currentProgress) {
+        currentProgress = val;
+        if (progressRing) {
+            progressRing.style.setProperty("--progress", currentProgress);
+        }
+        if (progressText) {
+            progressText.textContent = `${currentProgress}%`;
+        }
+    }
+}
 
-    progressRing.style.setProperty(
-        "--progress",
-        progress,
-    );
 
-    progressText.textContent = `${progress}%`;
+function resetProgress() {
+    currentProgress = 0;
+    if (progressRing) {
+        progressRing.style.setProperty("--progress", 0);
+    }
+    if (progressText) {
+        progressText.textContent = "0%";
+    }
 }
 
 
@@ -127,7 +143,7 @@ function resetInterface() {
     runBadge.textContent = "Ready";
     runBadge.className = "run-badge";
 
-    updateProgress(0);
+    resetProgress();
 }
 
 
@@ -144,202 +160,138 @@ function setRunningState(isRunning) {
 }
 
 
-function getStageElement(stageId) {
-    return document.querySelector(
-        `[data-stage-id="${stageId}"]`,
-    );
+const ORCHESTRATION_STAGES = [
+    { id: "router", label: "Route Request" },
+    { id: "research", label: "Retrieve Evidence" },
+    { id: "planner", label: "Build Article Plan" },
+    { id: "writing", label: "Generate Sections" },
+    { id: "editor", label: "Editorial Review" },
+    { id: "formatter", label: "Markdown Formatter" },
+    { id: "image_planner", label: "Image Planner" },
+    { id: "image_generator", label: "Generate Images" },
+    { id: "completed", label: "Completed" },
+];
+
+function initializeTimeline() {
+    if (!timeline) return;
+
+    activityEmpty.hidden = true;
+    timeline.hidden = false;
+    timeline.innerHTML = "";
+
+    ORCHESTRATION_STAGES.forEach(stage => {
+        const item = document.createElement("div");
+        item.className = "timeline-stage waiting";
+        item.dataset.stageId = stage.id;
+        item.innerHTML = `
+            <div class="stage-status-icon">⚪</div>
+            <div class="stage-info">
+                <div class="stage-title">${escapeHtml(stage.label)}</div>
+                <div class="stage-detail">Waiting</div>
+            </div>
+        `;
+        timeline.appendChild(item);
+    });
 }
 
+function updateStageStatus(stageId, status, detail = null) {
+    if (!stageId) return;
 
-function createStageElement(stageId) {
-    const element = document.createElement("div");
+    activityEmpty.hidden = true;
+    if (timeline.hidden) timeline.hidden = false;
+    if (timeline.children.length === 0) initializeTimeline();
 
-    element.className = "timeline-item";
-    element.dataset.stageId = stageId;
+    const stageMap = {
+        router: "router",
+        routing: "router",
 
-    element.innerHTML = `
-        <div class="timeline-marker">
-            <span></span>
-        </div>
+        research: "research",
+        tavily_worker: "research",
+        research_complete: "research",
 
-        <div class="timeline-content">
-            <div class="timeline-title"></div>
-            <div class="timeline-detail"></div>
-        </div>
-    `;
+        planner: "planner",
+        orchestrator: "planner",
+        plan: "planner",
 
-    timeline.appendChild(element);
+        writing: "writing",
+        workers: "writing",
+        worker_section: "writing",
+        assemble_sections: "writing",
+        section_complete: "writing",
 
-    return element;
+        editor: "editor",
+
+        formatter: "formatter",
+        markdown_formatter: "formatter",
+
+        image_planner: "image_planner",
+        decide_images: "image_planner",
+        images_planned: "image_planner",
+
+        image_generator: "image_generator",
+        image_worker: "image_generator",
+        publishing: "image_generator",
+        generate_images: "image_generator",
+        generate_and_place_images: "image_generator",
+
+        completed: "completed",
+        done: "completed"
+    };
+
+    const targetId = stageMap[stageId] || stageId;
+    const stageEl = timeline.querySelector(`[data-stage-id="${targetId}"]`);
+    if (!stageEl) return;
+
+    const iconMap = {
+        waiting: "⚪",
+        running: "🟡",
+        completed: "🟢",
+        failed: "🔴"
+    };
+
+    stageEl.className = `timeline-stage ${status}`;
+    const iconEl = stageEl.querySelector(".stage-status-icon");
+    const detailEl = stageEl.querySelector(".stage-detail");
+
+    if (iconEl) iconEl.textContent = iconMap[status] || "⚪";
+    if (detailEl) {
+        if (detail) {
+            detailEl.textContent = detail;
+        } else if (status === "running") {
+            detailEl.textContent = "Running...";
+        } else if (status === "completed") {
+            detailEl.textContent = "Completed";
+        } else if (status === "failed") {
+            detailEl.textContent = "Failed";
+        }
+    }
+
+    if (status === "completed" && stageProgress[targetId] !== undefined) {
+        updateProgress(stageProgress[targetId]);
+    }
 }
-
 
 function updateStage(event) {
-    activityEmpty.hidden = true;
-
-    let element = getStageElement(event.id);
-
-    if (!element) {
-        element = createStageElement(event.id);
-    }
-
-    element.classList.remove(
-        "running",
-        "completed",
-        "failed",
-    );
-
-    element.classList.add(
-        event.status || "running",
-    );
-
-    const title = element.querySelector(
-        ".timeline-title",
-    );
-
-    const detail = element.querySelector(
-        ".timeline-detail",
-    );
-
-    title.textContent = event.label;
-    detail.textContent = event.detail || "";
-
-    if (
-        event.status === "completed"
-        && stageProgress[event.id] !== undefined
-    ) {
-        updateProgress(stageProgress[event.id]);
-    }
+    updateStageStatus(event.id, event.status || "running", event.detail);
 }
-
 
 function addSubstage(event) {
-    activityEmpty.hidden = true;
-
-    const stageId = event.id || event.label;
-    let element = getStageElement(stageId);
-
-    if (element) {
-        element.classList.remove("running", "failed");
-        element.classList.add("completed");
-        const title = element.querySelector(".timeline-title");
-        const detail = element.querySelector(".timeline-detail");
-        if (title) title.textContent = event.label;
-        if (detail) detail.textContent = "Completed";
-        return;
-    }
-
-    element = document.createElement("div");
-    element.className = "timeline-item substage completed";
-    element.dataset.stageId = stageId;
-
-    element.innerHTML = `
-        <div class="timeline-marker">
-            <span></span>
-        </div>
-
-        <div class="timeline-content">
-            <div class="timeline-title">
-                ${escapeHtml(event.label)}
-            </div>
-
-            <div class="timeline-detail">
-                Completed
-            </div>
-        </div>
-    `;
-
-    timeline.appendChild(element);
+    updateStageStatus(event.id || event.label, event.status || "completed", event.detail);
 }
-
 
 function showRouting(event) {
     const modeLabels = {
-        closed_book: "Evergreen topic",
-        hybrid: "Research-assisted topic",
-        open_book: "Current information topic",
+        closed_book: "Selected closed book mode",
+        hybrid: "Selected hybrid mode",
+        open_book: "Selected open book mode",
     };
-
-    const detail =
-        modeLabels[event.mode]
-        || event.mode;
-
-    const element = getStageElement("router");
-
-    if (element) {
-        const detailElement = element.querySelector(
-            ".timeline-detail",
-        );
-
-        detailElement.textContent =
-            `${detail}. Research: ${
-                event.needs_research
-                    ? "required"
-                    : "not required"
-            }.`;
-    }
-
-    if (
-        Array.isArray(event.queries)
-        && event.queries.length
-    ) {
-        const queriesElement = document.createElement(
-            "div",
-        );
-
-        queriesElement.className = "query-list";
-
-        queriesElement.innerHTML = event.queries
-            .map(
-                query => `
-                    <span>
-                        ${escapeHtml(query)}
-                    </span>
-                `,
-            )
-            .join("");
-
-        if (element) {
-            element
-                .querySelector(".timeline-content")
-                .appendChild(queriesElement);
-        }
-    }
+    const detail = `${modeLabels[event.mode] || event.mode}. Research ${event.needs_research ? "required" : "not required"}.`;
+    updateStageStatus("router", "completed", detail);
 }
 
-
 function showResearch(event) {
-    if (!event.evidence?.length) {
-        return;
-    }
-
-    const stage = getStageElement("research");
-
-    if (!stage) {
-        return;
-    }
-
-    const sources = document.createElement("div");
-    sources.className = "source-list";
-
-    sources.innerHTML = event.evidence
-        .slice(0, 5)
-        .map(source => `
-            <a
-                href="${escapeHtml(source.url)}"
-                target="_blank"
-                rel="noopener noreferrer"
-            >
-                ${escapeHtml(
-                    source.title || source.url,
-                )}
-            </a>
-        `)
-        .join("");
-
-    stage
-        .querySelector(".timeline-content")
-        .appendChild(sources);
+    const count = event.evidence ? event.evidence.length : 0;
+    updateStageStatus("research", "completed", `Prepared ${count} deduplicated evidence sources.`);
 }
 
 
@@ -525,6 +477,13 @@ function displayFinalResult(event) {
     runBadge.className = "run-badge completed";
 
     updateProgress(100);
+
+    ORCHESTRATION_STAGES.forEach(stage => {
+        const stageEl = timeline.querySelector(`[data-stage-id="${stage.id}"]`);
+        if (stageEl && !stageEl.classList.contains("completed")) {
+            updateStageStatus(stage.id, "completed", "Completed");
+        }
+    });
 
     document
         .getElementById("resultCard")
@@ -735,9 +694,8 @@ runForm.addEventListener(
         }
 
         resetInterface();
+        initializeTimeline();
         setRunningState(true);
-
-        activityEmpty.hidden = true;
         planEmpty.hidden = false;
 
         try {
@@ -884,18 +842,11 @@ async function checkHealth() {
 function renderExecutionSummary(summary, metrics) {
     if (!summary) return;
 
-    const formatVal = (val, fallback = "—") =>
-        val !== undefined && val !== null && val !== "" && val !== "N/A" && !Number.isNaN(val)
-            ? val
-            : fallback;
-
     const elStatus = document.getElementById("sumStatus");
     const elCost = document.getElementById("sumCost");
     const elTokens = document.getElementById("sumTokens");
+    const elExecTime = document.getElementById("sumExecTime");
     const elAvgLatency = document.getElementById("sumAvgLatency");
-    const elTopNode = document.getElementById("sumTopNode");
-    const elTopModel = document.getElementById("sumTopModel");
-    const elSlowNode = document.getElementById("sumSlowNode");
     const elSections = document.getElementById("sumSections");
     const elImages = document.getElementById("sumImages");
     const elSources = document.getElementById("sumSources");
@@ -906,10 +857,8 @@ function renderExecutionSummary(summary, metrics) {
     if (elStatus) elStatus.textContent = summary.workflow_status === "completed" ? "🟢 Completed" : "🔴 Failed";
     if (elCost) elCost.textContent = `$${(summary.total_cost ?? 0).toFixed(4)}`;
     if (elTokens) elTokens.textContent = (summary.total_tokens ?? 0).toLocaleString();
+    if (elExecTime) elExecTime.textContent = summary.execution_duration || "0.0s";
     if (elAvgLatency) elAvgLatency.textContent = `${summary.average_latency ?? 0}ms`;
-    if (elTopNode) elTopNode.textContent = formatVal(summary.most_expensive_node);
-    if (elTopModel) elTopModel.textContent = formatVal(summary.most_expensive_model);
-    if (elSlowNode) elSlowNode.textContent = formatVal(summary.slowest_node);
     if (elSections) elSections.textContent = summary.sections_generated ?? 0;
     if (elImages) elImages.textContent = summary.images_generated ?? 0;
     if (elSources) elSources.textContent = summary.sources_retrieved ?? 0;
@@ -930,9 +879,26 @@ function renderExecutionSummary(summary, metrics) {
 
         tbody.innerHTML = uniqueMetrics.map(m => {
             const isImage = (m.images_generated && m.images_generated > 0) || (m.node_name && m.node_name.includes("image_generator"));
-            const promptTok = isImage ? (m.images_generated ? `${m.images_generated} img` : '—') : (m.prompt_tokens !== null && m.prompt_tokens !== undefined ? m.prompt_tokens.toLocaleString() : '—');
-            const compTok = isImage ? (m.resolution || '—') : (m.completion_tokens !== null && m.completion_tokens !== undefined ? m.completion_tokens.toLocaleString() : '—');
-            const totTok = isImage ? '—' : (m.total_tokens !== null && m.total_tokens !== undefined ? m.total_tokens.toLocaleString() : '—');
+            const isResearch = (m.provider && m.provider.toLowerCase().includes("tavily")) || (m.node_name && m.node_name.includes("research"));
+
+            let promptTok = '—';
+            let compTok = '—';
+            let totTok = '—';
+
+            if (isImage) {
+                promptTok = m.images_generated ? `${m.images_generated} img` : '—';
+                compTok = m.resolution || '—';
+                totTok = '—';
+            } else if (isResearch) {
+                promptTok = '1 search';
+                compTok = '—';
+                totTok = '—';
+            } else {
+                promptTok = m.prompt_tokens !== null && m.prompt_tokens !== undefined ? m.prompt_tokens.toLocaleString() : '—';
+                compTok = m.completion_tokens !== null && m.completion_tokens !== undefined ? m.completion_tokens.toLocaleString() : '—';
+                totTok = m.total_tokens !== null && m.total_tokens !== undefined ? m.total_tokens.toLocaleString() : '—';
+            }
+
             const costText = m.estimated_cost !== undefined && m.estimated_cost !== null ? `$${m.estimated_cost.toFixed(4)}` : '—';
             const latencyText = m.latency_ms !== undefined && m.latency_ms !== null ? `${m.latency_ms}ms` : '—';
             const statusText = escapeHtml(m.status || 'completed');
@@ -955,6 +921,81 @@ function renderExecutionSummary(summary, metrics) {
 }
 
 
+async function loadHistoryList() {
+    const historyList = document.getElementById("historyList");
+    if (!historyList) return;
+
+    try {
+        const response = await fetch("/api/history");
+        if (!response.ok) return;
+
+        const items = await response.json();
+        if (!items || items.length === 0) {
+            historyList.innerHTML = '<div class="history-empty">No previous runs found.</div>';
+            return;
+        }
+
+        historyList.innerHTML = items.map(item => {
+            const dateStr = item.created_at ? new Date(item.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+            const costStr = item.total_cost !== undefined ? `$${item.total_cost.toFixed(4)}` : '—';
+            const tokStr = item.total_tokens ? item.total_tokens.toLocaleString() + ' tok' : '—';
+            const durStr = item.execution_duration || '—';
+
+            return `
+                <div class="history-card" data-run-id="${escapeHtml(item.run_id)}" onclick="selectHistoryItem('${escapeHtml(item.run_id)}')">
+                    <div class="history-title">📄 ${escapeHtml(item.title || 'Untitled Run')}</div>
+                    <div class="history-meta">
+                        <span>🕒 ${dateStr}</span>
+                        <span>⏱ ${durStr}</span>
+                        <span>💰 ${costStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    } catch (err) {
+        console.error("Failed to load history list:", err);
+    }
+}
+
+
+async function selectHistoryItem(runId) {
+    if (!runId) return;
+
+    document.querySelectorAll(".history-card").forEach(card => {
+        if (card.dataset.runId === runId) {
+            card.classList.add("active");
+        } else {
+            card.classList.remove("active");
+        }
+    });
+
+    try {
+        const response = await fetch(`/api/history/${runId}`);
+        if (!response.ok) {
+            showToast("Failed to load history item.");
+            return;
+        }
+
+        const data = await response.json();
+        if (data.markdown) {
+            displayFinalResult({
+                markdown: data.markdown,
+                download_url: data.download_url
+            });
+        }
+
+        if (data.summary) {
+            renderExecutionSummary(data.summary, data.metrics || []);
+        }
+
+        showToast("Historical blog loaded instantly.");
+    } catch (err) {
+        console.error("Error fetching history item:", err);
+        showToast("Error loading history item.");
+    }
+}
+
 
 resetInterface();
 checkHealth();
+loadHistoryList();

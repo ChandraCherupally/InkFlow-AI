@@ -54,8 +54,8 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
     # Router Node: Requires structured output
     NodeType.ROUTER: NodeModelConfig(
         node_type=NodeType.ROUTER,
-        primary=ModelProfiles.GEMINI_2_5_FLASH_LITE,
-        fallbacks=[ModelProfiles.GPT_5_MINI],
+        primary=ModelProfiles.GEMINI_3_1_PRO_PREVIEW,
+        fallbacks=[ModelProfiles.GEMINI_2_5_FLASH_LITE, ModelProfiles.GPT_5_MINI],
         required_capabilities={"supports_structured_output": True},
     ),
     # Research Node: Structured output + search support
@@ -111,7 +111,6 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
         required_capabilities={"supports_images": True},
     ),
 }
-
 
 def get_node_config(node_type: NodeType) -> NodeModelConfig:
     """

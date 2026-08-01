@@ -33,7 +33,7 @@
 
     <link
         rel="stylesheet"
-        href="{{ url_for('static', path='css/style.css') }}"
+        href="{{ url_for('static', path='css/style.css') }}?v=3"
     >
 </head>
 
@@ -62,36 +62,31 @@
             </button>
 
             <div class="workflow-menu">
-                <p>Workflow</p>
+                <p>Workflow Stages</p>
 
                 <div class="workflow-item">
-                    <span>01</span>
-                    Route Request
+                    <span>01</span> Route Request
                 </div>
-
                 <div class="workflow-item">
-                    <span>02</span>
-                    Retrieve Evidence
+                    <span>02</span> Retrieve Evidence
                 </div>
-
                 <div class="workflow-item">
-                    <span>03</span>
-                    Build Article Plan
+                    <span>03</span> Build Article Plan
                 </div>
-
                 <div class="workflow-item">
-                    <span>04</span>
-                    Generate Sections
+                    <span>04</span> Generate Sections
                 </div>
-
                 <div class="workflow-item">
-                    <span>05</span>
-                    Assemble Markdown
+                    <span>05</span> Senior Editorial Review
                 </div>
-
                 <div class="workflow-item">
-                    <span>06</span>
-                    Generate Images
+                    <span>06</span> Markdown Formatter
+                </div>
+                <div class="workflow-item">
+                    <span>07</span> Image Planner
+                </div>
+                <div class="workflow-item">
+                    <span>08</span> Generate Images
                 </div>
             </div>
 
@@ -102,10 +97,8 @@
                     <div class="summary-item"><span>🟢 Workflow Status</span><strong id="sumStatus">Ready</strong></div>
                     <div class="summary-item"><span>💲 Total Cost</span><strong id="sumCost">$0.0000</strong></div>
                     <div class="summary-item"><span>🎟 Total Tokens</span><strong id="sumTokens">0</strong></div>
+                    <div class="summary-item"><span>⏱ Execution Time</span><strong id="sumExecTime">0.0s</strong></div>
                     <div class="summary-item"><span>⚡ Average Latency</span><strong id="sumAvgLatency">0.0ms</strong></div>
-                    <div class="summary-item"><span>🔥 Most Expensive Node</span><strong id="sumTopNode">-</strong></div>
-                    <div class="summary-item"><span>🧠 Most Expensive Model</span><strong id="sumTopModel">-</strong></div>
-                    <div class="summary-item"><span>🐢 Slowest Node</span><strong id="sumSlowNode">-</strong></div>
                     <div class="summary-item"><span>📄 Sections Generated</span><strong id="sumSections">0</strong></div>
                     <div class="summary-item"><span>🖼 Images Generated</span><strong id="sumImages">0</strong></div>
                     <div class="summary-item"><span>🔍 Sources Retrieved</span><strong id="sumSources">0</strong></div>
@@ -113,31 +106,17 @@
                     <div class="summary-item"><span>⚠️ Fallback Count</span><strong id="sumFallbacks">0</strong></div>
                     <div class="summary-item"><span>🛡 Guardrail Violations</span><strong id="sumViolations">0</strong></div>
                 </div>
-
-                <details class="execution-details-toggle">
-                    <summary>▶ Execution Details</summary>
-                    <div class="details-table-wrapper">
-                        <table class="metrics-table">
-                            <thead>
-                                <tr>
-                                    <th>Node</th>
-                                    <th>Provider</th>
-                                    <th>Model</th>
-                                    <th>Prompt Tokens</th>
-                                    <th>Completion Tokens</th>
-                                    <th>Total Tokens</th>
-                                    <th>Latency</th>
-                                    <th>Cost</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="metricsTableBody">
-                                <tr><td colspan="9" class="empty-row">No metrics recorded yet.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
             </div>
+
+            <!-- Blog History Accordion Section -->
+            <details class="history-section" id="historyAccordion" open>
+                <summary class="history-header">
+                    <span>📜 History</span>
+                </summary>
+                <div id="historyList" class="history-list">
+                    <div class="history-empty">No previous runs found.</div>
+                </div>
+            </details>
 
             <div class="server-status">
                 <div
@@ -299,22 +278,23 @@
                     </div>
 
                     <div
+                        id="activityEmpty"
+                        class="empty-state"
+                    >
+                        <div class="empty-icon">⌁</div>
+
+                        <h3>No workflow running</h3>
+
+                        <p>
+                            Pipeline execution steps and completed actions will appear here.
+                        </p>
+                    </div>
+
+                    <div
                         id="timeline"
                         class="timeline"
-                    >
-                        <div
-                            id="activityEmpty"
-                            class="empty-state"
-                        >
-                            <div class="empty-icon">⌁</div>
-
-                            <h3>No workflow running</h3>
-
-                            <p>
-                                Pipeline execution steps and completed actions will appear here.
-                            </p>
-                        </div>
-                    </div>
+                        hidden
+                    ></div>
                 </article>
 
                 <article class="panel-card">
@@ -439,6 +419,36 @@
                         hidden
                     ></pre>
                 </div>
+            </section>
+
+            <!-- Full-width Execution Details Section -->
+            <section id="executionDetailsCard" class="full-width-details-card">
+                <details class="execution-details-toggle">
+                    <summary class="details-summary-header">
+                        <span>▶ Execution Details</span>
+                        <span class="details-subtitle">Detailed node execution metrics, tokens & latency breakdown</span>
+                    </summary>
+                    <div class="details-table-wrapper">
+                        <table class="metrics-table">
+                            <thead>
+                                <tr>
+                                    <th>Node</th>
+                                    <th>Provider</th>
+                                    <th>Model</th>
+                                    <th>Prompt Tokens</th>
+                                    <th>Completion Tokens</th>
+                                    <th>Total Tokens</th>
+                                    <th>Latency</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="metricsTableBody">
+                                <tr><td colspan="9" class="empty-row">No metrics recorded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
             </section>
         </main>
     </div>

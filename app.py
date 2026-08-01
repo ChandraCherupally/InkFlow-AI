@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
+from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
@@ -201,12 +202,15 @@ def get_plan_task_map(
     return task_map
 
 
-def save_final_markdown(
+def save_final_run_data(
     run_id: str,
+    topic: str,
     markdown: str,
+    summary: dict[str, Any] | None = None,
+    metrics: list[dict[str, Any]] | None = None,
 ) -> Path:
     """
-    Save a copy of the generated Markdown output.
+    Save Markdown output and execution metadata.json.
     """
     run_directory = OUTPUTS_DIR / run_id
     run_directory.mkdir(
@@ -215,11 +219,38 @@ def save_final_markdown(
     )
 
     output_file = run_directory / "blog.md"
-
     output_file.write_text(
         markdown,
         encoding="utf-8",
     )
+
+    title = topic
+    for line in markdown.splitlines():
+        line_clean = line.strip()
+        if line_clean.startswith("# "):
+            title = line_clean[2:].strip()
+            break
+
+    meta_file = run_directory / "meta.json"
+    meta_payload = {
+        "run_id": run_id,
+        "topic": topic,
+        "title": title,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "execution_duration": (summary or {}).get("execution_duration", "0.0s"),
+        "total_cost": (summary or {}).get("total_cost", 0.0),
+        "total_tokens": (summary or {}).get("total_tokens", 0),
+        "summary": summary or {},
+        "metrics": metrics or [],
+    }
+
+    try:
+        meta_file.write_text(
+            json.dumps(meta_payload, indent=2),
+            encoding="utf-8",
+        )
+    except Exception as err:
+        logger.warning("Could not write meta.json for run %s: %s", run_id, err)
 
     return output_file
 
@@ -227,10 +258,7 @@ def save_final_markdown(
 # ---------------------------------------------------------
 # LangGraph streaming
 # ---------------------------------------------------------
-def stream_workflow(
-    topic: str,
-    run_id: str,
-) -> Generator[str, None, None]:
+def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
     """
     Run the InkFlow-AI LangGraph workflow and stream execution updates.
     """
@@ -475,29 +503,66 @@ def stream_workflow(
                         yield create_sse_event(
                             {
                                 "type": "stage",
-                                "id": "reducer",
-                                "label": "Assemble Final Markdown",
+                                "id": "editor",
+                                "label": "Senior Editorial Review",
                                 "status": "running",
-                                "detail": "Merging sections and planning visuals.",
+                                "detail": "Senior Editorial Review in progress...",
                             }
                         )
 
                 # =================================================
-                # Editorial Review & Markdown Formatter
+                # Editorial Review
                 # =================================================
-                elif node_name in ("editor", "markdown_formatter"):
+                elif node_name == "editor":
                     blog_markdown = str(node_update.get("blog_markdown", ""))
                     if blog_markdown:
                         final_markdown = blog_markdown
 
-                    label = "Senior Editorial Review" if node_name == "editor" else "Standardizing Markdown Presentation"
                     yield create_sse_event(
                         {
-                            "type": "substage",
-                            "id": node_name,
-                            "label": label,
+                            "type": "stage",
+                            "id": "editor",
+                            "label": "Senior Editorial Review",
                             "status": "completed",
-                            "namespace": list(namespace),
+                            "detail": "Senior Editorial Review completed.",
+                        }
+                    )
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "formatter",
+                            "label": "Markdown Formatter",
+                            "status": "running",
+                            "detail": "Standardizing Markdown presentation...",
+                        }
+                    )
+
+                # =================================================
+                # Markdown Formatter
+                # =================================================
+                elif node_name in ("markdown_formatter", "formatter"):
+                    blog_markdown = str(node_update.get("blog_markdown", ""))
+                    if blog_markdown:
+                        final_markdown = blog_markdown
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "formatter",
+                            "label": "Markdown Formatter",
+                            "status": "completed",
+                            "detail": "Markdown presentation standardized.",
+                        }
+                    )
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "image_planner",
+                            "label": "Image Planner",
+                            "status": "running",
+                            "detail": "Planning technical visual illustrations...",
                         }
                     )
 
@@ -521,18 +586,28 @@ def stream_workflow(
 
                     yield create_sse_event(
                         {
-                            "type": "substage",
-                            "id": "decide_images",
-                            "label": "Plan Technical Illustrations",
+                            "type": "stage",
+                            "id": "image_planner",
+                            "label": "Image Planner",
                             "status": "completed",
-                            "namespace": list(namespace),
+                            "detail": f"Planned {len(images)} technical visual illustration(s).",
+                        }
+                    )
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "image_generator",
+                            "label": "Generate Images",
+                            "status": "running",
+                            "detail": "Generating technical images in parallel...",
                         }
                     )
 
                 # =================================================
                 # Image Generator / Publishing
                 # =================================================
-                elif node_name in ("image_generator", "image_worker", "assemble_publishing", "publishing", "generate_and_place_images", "reducer", "merge_content"):
+                elif node_name in ("image_generator", "image_worker", "assemble_publishing", "publishing", "generate_and_place_images"):
                     generated_final = (
                         node_update.get("final_markdown")
                         or node_update.get("blog_markdown")
@@ -542,16 +617,25 @@ def stream_workflow(
                     if generated_final:
                         final_markdown = str(generated_final)
 
-                    if node_name in ("image_generator", "publishing", "generate_and_place_images"):
-                        yield create_sse_event(
-                            {
-                                "type": "substage",
-                                "id": "generate_images",
-                                "label": "Generate Technical Images",
-                                "status": "completed",
-                                "namespace": list(namespace),
-                            }
-                        )
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "image_generator",
+                            "label": "Generate Images",
+                            "status": "completed",
+                            "detail": "Technical images generated.",
+                        }
+                    )
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "completed",
+                            "label": "Completed",
+                            "status": "running",
+                            "detail": "Finalizing Markdown article...",
+                        }
+                    )
 
         # -----------------------------------------------------
         # Final output check
@@ -572,11 +656,6 @@ def stream_workflow(
 
         if not final_markdown:
             raise RuntimeError("The workflow completed but did not return final Markdown.")
-
-        save_final_markdown(
-            run_id=run_id,
-            markdown=final_markdown,
-        )
 
         yield create_sse_event(
             {
@@ -628,6 +707,14 @@ def stream_workflow(
             sources_count=sources_count,
         )
 
+        save_final_run_data(
+            run_id=run_id,
+            topic=topic,
+            markdown=final_markdown,
+            summary=exec_summary,
+            metrics=deduped_metrics,
+        )
+
         try:
             workflow.update_state(config, {"execution_summary": exec_summary})
         except Exception:
@@ -675,10 +762,7 @@ def stream_workflow(
 # ---------------------------------------------------------
 # Page endpoint
 # ---------------------------------------------------------
-@app.get(
-    "/",
-    response_class=HTMLResponse,
-)
+@app.get("/",response_class=HTMLResponse,)
 def home(request: Request):
     return templates.TemplateResponse(
         request=request,
@@ -760,6 +844,118 @@ def download_markdown(run_id: str):
         media_type="text/markdown",
         filename=f"inkflow-blog-{safe_run_id[:8]}.md",
     )
+
+
+# ---------------------------------------------------------
+# History Endpoints (Disk-based output folder enumeration)
+# ---------------------------------------------------------
+@app.get("/api/history")
+def list_history():
+    """
+    List all previously generated blog runs from data/outputs.
+    """
+    history_items: list[dict[str, Any]] = []
+
+    if not OUTPUTS_DIR.exists():
+        return history_items
+
+    for run_dir in OUTPUTS_DIR.iterdir():
+        if not run_dir.is_dir():
+            continue
+
+        run_id = run_dir.name
+        blog_file = run_dir / "blog.md"
+        meta_file = run_dir / "meta.json"
+
+        if not blog_file.exists():
+            continue
+
+        title = "Untitled Workflow Run"
+        created_at = datetime.fromtimestamp(
+            blog_file.stat().st_mtime, tz=timezone.utc
+        ).isoformat()
+        execution_duration = "—"
+        total_cost = 0.0
+        total_tokens = 0
+
+        # Extract title from blog.md H1 header
+        try:
+            markdown_content = blog_file.read_text(encoding="utf-8")
+            for line in markdown_content.splitlines():
+                clean_line = line.strip()
+                if clean_line.startswith("# "):
+                    title = clean_line[2:].strip()
+                    break
+        except Exception:
+            pass
+
+        # Load metadata if present
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                if isinstance(meta, dict):
+                    title = meta.get("title") or meta.get("topic") or title
+                    created_at = meta.get("created_at") or created_at
+                    execution_duration = meta.get("execution_duration") or execution_duration
+                    total_cost = meta.get("total_cost", 0.0)
+                    total_tokens = meta.get("total_tokens", 0)
+            except Exception:
+                pass
+
+        history_items.append(
+            {
+                "run_id": run_id,
+                "title": title,
+                "created_at": created_at,
+                "execution_duration": execution_duration,
+                "total_cost": total_cost,
+                "total_tokens": total_tokens,
+            }
+        )
+
+    # Sort descending by creation timestamp
+    history_items.sort(key=lambda x: x["created_at"], reverse=True)
+    return history_items
+
+
+@app.get("/api/history/{run_id}")
+def get_history_item(run_id: str):
+    """
+    Load stored markdown, images, summary, and details metrics for a historical run.
+    """
+    safe_run_id = "".join(
+        ch for ch in run_id if ch.isalnum() or ch in {"-", "_"}
+    )
+    if safe_run_id != run_id:
+        raise HTTPException(status_code=400, detail="Invalid run ID.")
+
+    run_dir = OUTPUTS_DIR / safe_run_id
+    blog_file = run_dir / "blog.md"
+    meta_file = run_dir / "meta.json"
+
+    if not blog_file.exists():
+        raise HTTPException(status_code=404, detail="Run output not found.")
+
+    markdown = blog_file.read_text(encoding="utf-8")
+    summary: dict[str, Any] = {}
+    metrics: list[dict[str, Any]] = []
+
+    if meta_file.exists():
+        try:
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            if isinstance(meta, dict):
+                summary = meta.get("summary", {})
+                metrics = meta.get("metrics", [])
+        except Exception:
+            pass
+
+    return {
+        "run_id": safe_run_id,
+        "markdown": markdown,
+        "summary": summary,
+        "metrics": metrics,
+        "download_url": f"/api/runs/{safe_run_id}/download",
+    }
 
 
 if __name__ == "__main__":

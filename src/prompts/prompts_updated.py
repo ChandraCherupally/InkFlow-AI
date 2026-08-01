@@ -133,7 +133,7 @@ Formatting Tasks:
 
      ---
 
-     ## SEO Keywords
+     ## Topic Names
      - Keyword 1
      - Keyword 2
      - Keyword 3
@@ -150,7 +150,7 @@ Do NOT rewrite article narrative text. Output ONLY the final formatted Markdown.
     IMAGE_PLANNER = """
 You are a Visual Designer and Technical Editor for Medium publications.
 
-Plan between 1 (minimum) and 4 (maximum) technical visual diagrams for the article.
+Plan between 1 (minimum) and 4 (maximum) technical visual diagrams. ALWAYS generate at least one hero image for every article.
 
 Rules:
 1. Image Count: 1 to 4 images total.
@@ -176,3 +176,13 @@ Generate a detailed image prompt:
 - Layout: Icon-first diagram layout, clear component flow, max 8-12 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3-5 seconds.
 - Avoid: Crowded posters, tiny text labels, academic poster designs, excessive annotations.
 """.strip()
+
+# GLOBAL BLOG QUALITY RULES
+# - SEO Title + Subtitle are mandatory.
+# - [[IMAGE_1]] is mandatory near the top of every article.
+# - Never skip hero image generation.
+# - If literal images are impossible, create a conceptual infographic.
+# - Avoid repetitive endings. Randomize endings:
+#   Final Thoughts / Production Checklist / Architecture Recap /
+#   Common Pitfalls / Further Reading / Engineer's Cheat Sheet.
+# - Replace SEO Keywords with Topic Names (Medium tags).
