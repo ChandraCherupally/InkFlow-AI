@@ -33,7 +33,7 @@ def fanout_images(state: BlogState):
         return "assemble_publishing"
 
     return [
-        Send("image_worker", {"spec": spec})
+        Send("image_worker", {"spec": spec, "run_id": getattr(state, "run_id", None)})
         for spec in state.image_plan.images
     ]
 

@@ -63,6 +63,7 @@ class BlogState:
     # ------------------------------------------------------------------
     # Metadata & Observability Execution
     # ------------------------------------------------------------------
+    run_id: str = ""
     thread_id: str = "default"
     model_used: str = ""
     image_model_used: str = ""

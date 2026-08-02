@@ -24,6 +24,7 @@ const markdownTab = document.getElementById("markdownTab");
 
 const copyButton = document.getElementById("copyButton");
 const downloadButton = document.getElementById("downloadButton");
+const downloadZipButton = document.getElementById("downloadZipButton");
 
 const healthDot = document.getElementById("healthDot");
 const healthText = document.getElementById("healthText");
@@ -140,6 +141,15 @@ function resetInterface() {
         "aria-disabled",
         "true",
     );
+
+    if (downloadZipButton) {
+        downloadZipButton.href = "#";
+        downloadZipButton.classList.add("disabled");
+        downloadZipButton.setAttribute(
+            "aria-disabled",
+            "true",
+        );
+    }
 
     runBadge.textContent = "Ready";
     runBadge.className = "run-badge";
@@ -471,12 +481,21 @@ function displayFinalResult(event) {
 
     copyButton.disabled = false;
 
-    downloadButton.href = event.download_url;
+    downloadButton.href = `${event.download_url}?format=md`;
     downloadButton.classList.remove("disabled");
     downloadButton.setAttribute(
         "aria-disabled",
         "false",
     );
+
+    if (downloadZipButton) {
+        downloadZipButton.href = `${event.download_url}?format=zip`;
+        downloadZipButton.classList.remove("disabled");
+        downloadZipButton.setAttribute(
+            "aria-disabled",
+            "false",
+        );
+    }
 
     runBadge.textContent = "Completed";
     runBadge.className = "run-badge completed";
@@ -822,6 +841,21 @@ downloadButton.addEventListener(
         }
     },
 );
+
+if (downloadZipButton) {
+    downloadZipButton.addEventListener(
+        "click",
+        event => {
+            if (
+                downloadZipButton.classList.contains(
+                    "disabled",
+                )
+            ) {
+                event.preventDefault();
+            }
+        },
+    );
+}
 
 
 async function checkHealth() {

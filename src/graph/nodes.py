@@ -352,6 +352,7 @@ Article
 
             generated = image_generator.generate(
                 image_spec,
+                run_id=getattr(state, "run_id", None),
             )
 
             generated_images.append(generated)

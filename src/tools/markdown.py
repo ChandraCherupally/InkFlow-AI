@@ -77,7 +77,7 @@ class MarkdownBuilder:
             final_md = base_text
             for idx, img in enumerate(images, 1):
                 placeholder_patterns = [f"[[IMAGE_{idx}]]", f"[IMAGE_{idx}]"]
-                image_url = f"/images/{img.filename}"
+                image_url = f"images/{img.filename}"
                 inline_md = f"\n\n![{img.alt}]({image_url})\n*{img.caption}*\n\n"
 
                 replaced = False
@@ -111,7 +111,7 @@ class MarkdownBuilder:
             if not hero_inserted and img_idx < len(images):
                 if line.startswith("## ") or (len(output_lines) > 5 and line == ""):
                     img = images[img_idx]
-                    image_url = f"/images/{img.filename}"
+                    image_url = f"images/{img.filename}"
                     output_lines.append("")
                     output_lines.append(f"![{img.alt}]({image_url})")
                     output_lines.append(f"*{img.caption}*")
@@ -123,7 +123,7 @@ class MarkdownBuilder:
             # Insert subsequent images beneath next ## H2 headings
             if hero_inserted and img_idx < len(images) and line.startswith("## "):
                 img = images[img_idx]
-                image_url = f"/images/{img.filename}"
+                image_url = f"images/{img.filename}"
                 output_lines.append("")
                 output_lines.append(f"![{img.alt}]({image_url})")
                 output_lines.append(f"*{img.caption}*")
@@ -133,7 +133,7 @@ class MarkdownBuilder:
         # Append remaining unused images inline cleanly
         while img_idx < len(images):
             img = images[img_idx]
-            image_url = f"/images/{img.filename}"
+            image_url = f"images/{img.filename}"
             output_lines.append("")
             output_lines.append(f"![{img.alt}]({image_url})")
             output_lines.append(f"*{img.caption}*")

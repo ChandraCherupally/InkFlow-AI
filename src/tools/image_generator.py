@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from src.config.settings import IMAGES_DIR
+from src.config.settings import IMAGES_DIR, OUTPUTS_DIR
 from src.models.gateway import gateway
 from src.models.types import NodeType
 from src.schemas.models import (
@@ -33,7 +33,7 @@ class ImageGenerator:
         self._output_dir = Path(IMAGES_DIR)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate(self, image: ImageSpec) -> GeneratedImage:
+    def generate(self, image: ImageSpec, run_id: str | None = None) -> GeneratedImage:
         """
         Generate a single image using the Gateway for NodeType.IMAGE_GENERATOR.
 
@@ -41,6 +41,8 @@ class ImageGenerator:
         ----------
         image:
             Image generation request spec.
+        run_id:
+            Optional workflow execution run directory identifier.
 
         Returns
         -------
@@ -56,7 +58,14 @@ class ImageGenerator:
         )
 
         filename = image.filename if image.filename.endswith(".png") else f"{image.filename}.png"
-        filepath = self._output_dir / filename
+
+        if run_id:
+            target_dir = OUTPUTS_DIR / run_id / "images"
+        else:
+            target_dir = self._output_dir
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+        filepath = target_dir / filename
         filepath.write_bytes(image_bytes)
 
         logger.info("Saved image: %s", filepath)

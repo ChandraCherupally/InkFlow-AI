@@ -28,6 +28,7 @@ def image_worker(state: dict) -> dict:
     Parallel worker for generating a single image specification.
     """
     spec_data = state.get("spec")
+    run_id = state.get("run_id")
 
     if not spec_data:
         return {"generated_images": [], "metrics": []}
@@ -39,7 +40,7 @@ def image_worker(state: dict) -> dict:
         spec = spec_data if isinstance(spec_data, ImageSpec) else ImageSpec(**spec_data)
         logger.info("Generating parallel image for placeholder: %s", spec.placeholder)
 
-        generated = image_generator.generate(spec)
+        generated = image_generator.generate(spec, run_id=run_id)
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 
         metric = cost_tracker.create_metric(

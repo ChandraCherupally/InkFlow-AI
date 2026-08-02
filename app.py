@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
+import io
 import json
 import logging
 from pathlib import Path
 from typing import Any, Generator
 import uuid
+import zipfile
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -35,12 +37,12 @@ BASE_DIR = Path(__file__).resolve().parent
 
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+OUTPUTS_DIR = BASE_DIR / "outputs"
+LEGACY_OUTPUTS_DIR = BASE_DIR / "data" / "outputs"
 IMAGES_DIR = BASE_DIR / "data" / "images"
-OUTPUTS_DIR = BASE_DIR / "data" / "outputs"
 
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
-IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -75,10 +77,45 @@ app.mount(
 )
 
 app.mount(
-    "/images",
-    StaticFiles(directory=IMAGES_DIR),
-    name="images",
+    "/outputs",
+    StaticFiles(directory=OUTPUTS_DIR),
+    name="outputs",
 )
+
+
+@app.get("/images/{filename}")
+def serve_image(filename: str):
+    """
+    Serve generated images from run subdirectories or legacy storage.
+    """
+    safe_filename = Path(filename).name
+
+    # 1. Search in OUTPUTS_DIR run folders (newest first)
+    if OUTPUTS_DIR.exists():
+        run_dirs = sorted(
+            [d for d in OUTPUTS_DIR.iterdir() if d.is_dir()],
+            key=lambda d: d.stat().st_mtime,
+            reverse=True,
+        )
+        for run_dir in run_dirs:
+            img_file = run_dir / "images" / safe_filename
+            if img_file.is_file():
+                return FileResponse(path=img_file)
+
+    # 2. Search legacy outputs directory
+    if LEGACY_OUTPUTS_DIR.exists():
+        for run_dir in LEGACY_OUTPUTS_DIR.iterdir():
+            if run_dir.is_dir():
+                img_file = run_dir / "images" / safe_filename
+                if img_file.is_file():
+                    return FileResponse(path=img_file)
+
+    # 3. Fallback to legacy global images directory
+    legacy_file = IMAGES_DIR / safe_filename
+    if legacy_file.is_file():
+        return FileResponse(path=legacy_file)
+
+    raise HTTPException(status_code=404, detail="Image not found.")
 
 
 # ---------------------------------------------------------
@@ -268,7 +305,7 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
         }
     }
 
-    workflow_input = BlogState(topic=topic)
+    workflow_input = BlogState(topic=topic, run_id=run_id, thread_id=run_id)
     start_time_total = time.perf_counter()
 
     task_map: dict[int, dict[str, Any]] = {}
@@ -854,7 +891,9 @@ def run_agent(request_data: AgentRunRequest):
             detail="Please provide a valid topic.",
         )
 
-    run_id = uuid.uuid4().hex
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    short_id = uuid.uuid4().hex[:8]
+    run_id = f"run_{timestamp}_{short_id}"
 
     return StreamingResponse(
         stream_workflow(
@@ -871,10 +910,10 @@ def run_agent(request_data: AgentRunRequest):
 
 
 # ---------------------------------------------------------
-# Markdown download endpoint
+# Markdown & Archive Download Endpoint
 # ---------------------------------------------------------
 @app.get("/api/runs/{run_id}/download")
-def download_markdown(run_id: str):
+def download_output(run_id: str, format: str = "md"):
     safe_run_id = "".join(
         character
         for character in run_id
@@ -888,7 +927,11 @@ def download_markdown(run_id: str):
             detail="Invalid run ID.",
         )
 
-    output_file = OUTPUTS_DIR / safe_run_id / "blog.md"
+    run_dir = OUTPUTS_DIR / safe_run_id
+    if not run_dir.exists() and LEGACY_OUTPUTS_DIR.exists():
+        run_dir = LEGACY_OUTPUTS_DIR / safe_run_id
+
+    output_file = run_dir / "blog.md"
 
     if not output_file.is_file():
         raise HTTPException(
@@ -896,10 +939,27 @@ def download_markdown(run_id: str):
             detail="Generated Markdown file was not found.",
         )
 
+    if format.lower() == "zip":
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for file_path in run_dir.rglob("*"):
+                if file_path.is_file():
+                    arcname = file_path.relative_to(run_dir)
+                    zip_file.write(file_path, arcname=arcname)
+
+        zip_buffer.seek(0)
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_run_id}.zip"'
+            },
+        )
+
     return FileResponse(
         path=output_file,
         media_type="text/markdown",
-        filename=f"inkflow-blog-{safe_run_id[:8]}.md",
+        filename="blog.md",
     )
 
 
@@ -909,66 +969,76 @@ def download_markdown(run_id: str):
 @app.get("/api/history")
 def list_history():
     """
-    List all previously generated blog runs from data/outputs.
+    List all previously generated blog runs from outputs/ and legacy data/outputs/.
     """
     history_items: list[dict[str, Any]] = []
+    seen_run_ids: set[str] = set()
 
-    if not OUTPUTS_DIR.exists():
-        return history_items
+    search_dirs = [OUTPUTS_DIR]
+    if LEGACY_OUTPUTS_DIR.exists():
+        search_dirs.append(LEGACY_OUTPUTS_DIR)
 
-    for run_dir in OUTPUTS_DIR.iterdir():
-        if not run_dir.is_dir():
+    for outputs_path in search_dirs:
+        if not outputs_path.exists():
             continue
 
-        run_id = run_dir.name
-        blog_file = run_dir / "blog.md"
-        meta_file = run_dir / "meta.json"
+        for run_dir in outputs_path.iterdir():
+            if not run_dir.is_dir():
+                continue
 
-        if not blog_file.exists():
-            continue
+            run_id = run_dir.name
+            if run_id in seen_run_ids:
+                continue
+            seen_run_ids.add(run_id)
 
-        title = "Untitled Workflow Run"
-        created_at = datetime.fromtimestamp(
-            blog_file.stat().st_mtime, tz=timezone.utc
-        ).isoformat()
-        execution_duration = "—"
-        total_cost = 0.0
-        total_tokens = 0
+            blog_file = run_dir / "blog.md"
+            meta_file = run_dir / "meta.json"
 
-        # Extract title from blog.md H1 header
-        try:
-            markdown_content = blog_file.read_text(encoding="utf-8")
-            for line in markdown_content.splitlines():
-                clean_line = line.strip()
-                if clean_line.startswith("# "):
-                    title = clean_line[2:].strip()
-                    break
-        except Exception:
-            pass
+            if not blog_file.exists():
+                continue
 
-        # Load metadata if present
-        if meta_file.exists():
+            title = "Untitled Workflow Run"
+            created_at = datetime.fromtimestamp(
+                blog_file.stat().st_mtime, tz=timezone.utc
+            ).isoformat()
+            execution_duration = "—"
+            total_cost = 0.0
+            total_tokens = 0
+
+            # Extract title from blog.md H1 header
             try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
-                if isinstance(meta, dict):
-                    title = meta.get("title") or meta.get("topic") or title
-                    created_at = meta.get("created_at") or created_at
-                    execution_duration = meta.get("execution_duration") or execution_duration
-                    total_cost = meta.get("total_cost", 0.0)
-                    total_tokens = meta.get("total_tokens", 0)
+                markdown_content = blog_file.read_text(encoding="utf-8")
+                for line in markdown_content.splitlines():
+                    clean_line = line.strip()
+                    if clean_line.startswith("# "):
+                        title = clean_line[2:].strip()
+                        break
             except Exception:
                 pass
 
-        history_items.append(
-            {
-                "run_id": run_id,
-                "title": title,
-                "created_at": created_at,
-                "execution_duration": execution_duration,
-                "total_cost": total_cost,
-                "total_tokens": total_tokens,
-            }
-        )
+            # Load metadata if present
+            if meta_file.exists():
+                try:
+                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                    if isinstance(meta, dict):
+                        title = meta.get("title") or meta.get("topic") or title
+                        created_at = meta.get("created_at") or created_at
+                        execution_duration = meta.get("execution_duration") or execution_duration
+                        total_cost = meta.get("total_cost", 0.0)
+                        total_tokens = meta.get("total_tokens", 0)
+                except Exception:
+                    pass
+
+            history_items.append(
+                {
+                    "run_id": run_id,
+                    "title": title,
+                    "created_at": created_at,
+                    "execution_duration": execution_duration,
+                    "total_cost": total_cost,
+                    "total_tokens": total_tokens,
+                }
+            )
 
     # Sort descending by creation timestamp
     history_items.sort(key=lambda x: x["created_at"], reverse=True)
@@ -987,6 +1057,9 @@ def get_history_item(run_id: str):
         raise HTTPException(status_code=400, detail="Invalid run ID.")
 
     run_dir = OUTPUTS_DIR / safe_run_id
+    if not run_dir.exists() and LEGACY_OUTPUTS_DIR.exists():
+        run_dir = LEGACY_OUTPUTS_DIR / safe_run_id
+
     blog_file = run_dir / "blog.md"
     meta_file = run_dir / "meta.json"
 
