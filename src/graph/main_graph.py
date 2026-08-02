@@ -2,7 +2,7 @@
 Root workflow graph for InkFlow-AI.
 
 Architecture:
-START -> RoutingGraph -> ResearchGraph -> Planning Node -> WritingGraph -> PublishingGraph -> END
+START -> Input Guardrails -> RoutingGraph -> ResearchGraph -> Planning Node -> WritingGraph -> PublishingGraph -> END
 """
 
 from __future__ import annotations
@@ -10,12 +10,22 @@ from __future__ import annotations
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
+from src.guardrails.input_guardrails import input_guardrails
 from src.nodes.planner import planner
 from src.schemas.state import BlogState
 from src.subgraphs.publishing_graph import publishing_graph
 from src.subgraphs.research_graph import research_graph
 from src.subgraphs.routing_graph import routing_graph
 from src.subgraphs.writing_graph import writing_graph
+
+
+def route_after_input_guardrails(state: BlogState) -> str:
+    """
+    Determine transition after input guardrails based on error state.
+    """
+    if state.error:
+        return "end"
+    return "routing"
 
 
 def route_after_routing_stage(state: BlogState) -> str:
@@ -62,6 +72,7 @@ def build_main_graph(checkpointer=None):
     # ---------------------------------------------------------
     # Subgraphs & Nodes Registration
     # ---------------------------------------------------------
+    builder.add_node("input_guardrails", input_guardrails)
     builder.add_node("routing", routing_graph)
     builder.add_node("research", research_graph)
     builder.add_node("planner", planner)
@@ -71,7 +82,16 @@ def build_main_graph(checkpointer=None):
     # ---------------------------------------------------------
     # Transitions
     # ---------------------------------------------------------
-    builder.add_edge(START, "routing")
+    builder.add_edge(START, "input_guardrails")
+
+    builder.add_conditional_edges(
+        "input_guardrails",
+        route_after_input_guardrails,
+        {
+            "end": END,
+            "routing": "routing",
+        },
+    )
 
     builder.add_conditional_edges(
         "routing",
@@ -91,3 +111,4 @@ def build_main_graph(checkpointer=None):
 
 
 main_graph = build_main_graph()
+

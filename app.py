@@ -287,12 +287,12 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
     yield create_sse_event(
         {
             "type": "stage",
-            "id": "router",
-            "label": "Route User Request",
+            "id": "input_guardrails",
+            "label": "Input Guardrails Validation",
             "status": "running",
             "detail": (
-                "Determining whether the topic requires "
-                "current web research."
+                "Validating user prompt for security, "
+                "safety, and structural compliance."
             ),
         }
     )
@@ -318,9 +318,47 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
                     node_update = {}
 
                 # =================================================
+                # Input Guardrails
+                # =================================================
+                if node_name == "input_guardrails":
+                    error = node_update.get("error")
+                    if error:
+                        yield create_sse_event(
+                            {
+                                "type": "stage",
+                                "id": "input_guardrails",
+                                "label": "Input Guardrails Validation",
+                                "status": "failed",
+                                "detail": f"Failed: {error}",
+                            }
+                        )
+                    else:
+                        yield create_sse_event(
+                            {
+                                "type": "stage",
+                                "id": "input_guardrails",
+                                "label": "Input Guardrails Validation",
+                                "status": "completed",
+                                "detail": "Input prompt passed security & format checks.",
+                            }
+                        )
+                        yield create_sse_event(
+                            {
+                                "type": "stage",
+                                "id": "router",
+                                "label": "Route User Request",
+                                "status": "running",
+                                "detail": (
+                                    "Determining whether the topic requires "
+                                    "current web research."
+                                ),
+                            }
+                        )
+
+                # =================================================
                 # Router
                 # =================================================
-                if node_name in ("router", "routing", "route_after_router"):
+                elif node_name in ("router", "routing", "route_after_router"):
                     mode = str(
                         node_update.get("routing_mode")
                         or node_update.get("mode")
@@ -531,6 +569,36 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
                     yield create_sse_event(
                         {
                             "type": "stage",
+                            "id": "output_guardrails",
+                            "label": "Output Guardrails Validation",
+                            "status": "running",
+                            "detail": "Validating generated markdown for placeholders, leaks, and secrets...",
+                        }
+                    )
+
+                # =================================================
+                # Output Guardrails
+                # =================================================
+                elif node_name == "output_guardrails":
+                    warnings = node_update.get("guardrail_warnings", [])
+                    errors = node_update.get("guardrail_errors", [])
+                    detail_msg = "Output validation completed cleanly."
+                    if errors or warnings:
+                        detail_msg = f"Output validation completed with {len(errors)} error(s), {len(warnings)} warning(s)."
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
+                            "id": "output_guardrails",
+                            "label": "Output Guardrails Validation",
+                            "status": "completed",
+                            "detail": detail_msg,
+                        }
+                    )
+
+                    yield create_sse_event(
+                        {
+                            "type": "stage",
                             "id": "formatter",
                             "label": "Markdown Formatter",
                             "status": "running",
@@ -676,14 +744,20 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
             metrics = getattr(state_values, "metrics", [])
             plan_obj = getattr(state_values, "plan", None)
             evidence_obj = getattr(state_values, "evidence", None)
+            g_warn = getattr(state_values, "guardrail_warnings", []) or []
+            g_err = getattr(state_values, "guardrail_errors", []) or []
         elif isinstance(state_values, dict):
             metrics = state_values.get("metrics", [])
             plan_obj = state_values.get("plan")
             evidence_obj = state_values.get("evidence")
+            g_warn = state_values.get("guardrail_warnings", []) or []
+            g_err = state_values.get("guardrail_errors", []) or []
         else:
             metrics = []
             plan_obj = None
             evidence_obj = None
+            g_warn = []
+            g_err = []
 
         if isinstance(plan_obj, dict):
             sections_count = len(plan_obj.get("tasks", []))
@@ -699,12 +773,15 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
         else:
             sources_count = 0
 
+        guardrail_violations = len(g_warn) + len(g_err)
+
         deduped_metrics = cost_tracker.deduplicate_metrics(metrics or [])
         exec_summary = cost_tracker.calculate_summary(
             metrics=deduped_metrics,
             duration_seconds=duration_seconds,
             sections_count=sections_count,
             sources_count=sources_count,
+            guardrail_violations=guardrail_violations,
         )
 
         save_final_run_data(

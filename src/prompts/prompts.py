@@ -28,7 +28,7 @@ Modes:
 
 Rules:
 - Return valid JSON adhering to RouterDecision schema.
-- If research is required, generate 3-6 precise search queries.
+- If research is required, generate 2-5 precise search queries.
 """.strip()
 
     # ==========================================================
@@ -56,11 +56,12 @@ Create a concise, structured, publication-ready outline for a technical article.
 
 Requirements:
 1. SEO Title: 55-65 characters, highly clickable, natural language, incorporating the primary keyword. (Avoid "Introduction to...", "Overview of...").
-2. Article Outline: 5 to 8 logically ordered section tasks.
+2. Subtitle: 80 to 160 where we can explain the entire topic in simple words in this subtitle.
+3. Article Outline: 4 to 8 logically ordered section tasks.
    - Section 1 MUST be an introduction & core intuition hook.
    - Include a section for Best Practices, Common Mistakes & Production Tips.
    - Include a section for Summary & Key Takeaways.
-3. Task Details: For every task specify:
+4. Task Details: For every task specify:
    - title: Catchy section heading.
    - goal: Learning takeaway for developers.
    - bullets: 3-4 concise technical points (analogies, architecture, code snippets, trade-offs).
@@ -79,7 +80,7 @@ Write ONE comprehensive, engaging Markdown section for the article.
 
 Writing Guidelines:
 1. Readability: Paragraphs MUST be short (maximum 3-4 sentences). Never write walls of text.
-2. Explanatory Flow: Concept -> Simple Explanation -> Real-world Analogy -> Technical Explanation -> Code -> Diagram Context.
+2. Explanatory Flow: Concept -> Simple Explanation -> Real-world Analogy -> Technical Explanation -> Code(If needed) -> Diagram Context.
 3. Structure: Use sub-headings (###), bold key terms, blockquotes for key takeaways, and clean bullet lists.
 4. Code Examples: Fenced code blocks with syntax highlighting (```python, etc.). Must be runnable, commented, and explain WHY.
 5. Medium & Cross-Platform Math: NEVER use LaTeX math delimiters (no `\(...\)`, `\[...\]`, `$$...$$`, or `$...$`). Write clean, human-readable plain text mathematics (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`, `O(N log N)`).
@@ -131,15 +132,6 @@ Formatting Tasks:
      ## Key Takeaways
      (Exactly 5 concise bullet points)
 
-     ---
-
-     ## SEO Keywords
-     - Keyword 1
-     - Keyword 2
-     - Keyword 3
-     - Keyword 4
-     - Keyword 5
-
 Do NOT rewrite article narrative text. Output ONLY the final formatted Markdown.
 """.strip()
 
@@ -154,10 +146,10 @@ Plan between 1 (minimum) and 4 (maximum) technical visual diagrams for the artic
 
 Rules:
 1. Image Count: 1 to 4 images total.
-2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the title or intro paragraph.
+2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the sub title or intro paragraph.
 3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` at the exact section text where the diagram adds maximum context.
 4. Visual Style & Aspect Ratio: High resolution widescreen landscape 16:9 format (`1792x1024`), sleek dark slate background (`#0f172a`), flat vector illustration, glowing cyan/indigo/violet accents (`#6366f1`, `#38bdf8`, `#06b6d4`).
-5. Diagram Quality: Icon-first visual communication, maximum 8 to 12 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds. Avoid crowded poster diagrams with tiny text.
+5. Diagram Quality: Icon-first visual communication, maximum 6 to 10 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds. Avoid crowded poster diagrams with tiny texts.
 
 Return GlobalImagePlan schema containing:
 - `markdown_with_placeholders`: Article markdown with embedded `[[IMAGE_1]]`, `[[IMAGE_2]]`, ... placeholders.
@@ -173,6 +165,6 @@ You are an expert AI prompt engineer specializing in technical infographics for 
 
 Generate a detailed image prompt:
 - Style: Enterprise style, widescreen landscape 16:9 aspect ratio (`1792x1024`), sleek dark slate background (`#0f172a`), vibrant vector graphics, glowing blue and violet accents (`#6366f1`, `#06b6d4`), minimal text, publication-ready.
-- Layout: Icon-first diagram layout, clear component flow, max 8-12 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3-5 seconds.
+- Layout: Icon-first diagram layout, clear component flow, max 8 to 10 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds.
 - Avoid: Crowded posters, tiny text labels, academic poster designs, excessive annotations.
 """.strip()

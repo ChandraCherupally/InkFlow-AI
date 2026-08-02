@@ -68,5 +68,7 @@ class BlogState:
     image_model_used: str = ""
     error: str | None = None
     warnings: list[str] = field(default_factory=list)
+    guardrail_warnings: Annotated[list[str], operator.add] = field(default_factory=list)
+    guardrail_errors: Annotated[list[str], operator.add] = field(default_factory=list)
     metrics: Annotated[list[dict], operator.add] = field(default_factory=list)
     execution_summary: dict = field(default_factory=dict)

@@ -162,6 +162,7 @@ class CostTracker:
         duration_seconds: float = 0.0,
         sections_count: int = 0,
         sources_count: int = 0,
+        guardrail_violations: int = 0,
     ) -> dict[str, Any]:
         """
         Automatically aggregate individual node metrics into an Execution Summary.
@@ -181,7 +182,7 @@ class CostTracker:
                 "sources_retrieved": sources_count,
                 "unique_models_used": 0,
                 "fallback_count": 0,
-                "guardrail_violations": 0,
+                "guardrail_violations": guardrail_violations,
                 "execution_duration": f"{duration_seconds:.1f}s",
                 "successful_nodes": 0,
                 "failed_nodes": 0,
@@ -230,7 +231,7 @@ class CostTracker:
             "sources_retrieved": sources_count,
             "unique_models_used": unique_models,
             "fallback_count": fallback_count,
-            "guardrail_violations": 0,
+            "guardrail_violations": guardrail_violations,
             "execution_duration": f"{duration_seconds:.1f}s",
             "successful_nodes": successful_nodes,
             "failed_nodes": failed_nodes,

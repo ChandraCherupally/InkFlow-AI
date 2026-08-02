@@ -37,14 +37,16 @@ let completedTasks = 0;
 let currentProgress = 0;
 
 const stageProgress = {
+    input_guardrails: 5,
     router: 10,
-    research: 20,
-    planner: 35,
-    writing: 75,
-    editor: 80,
-    formatter: 85,
-    image_planner: 90,
-    image_generator: 95,
+    research: 15,
+    planner: 20,
+    writing: 40,
+    editor: 50,
+    output_guardrails: 60,
+    formatter: 70,
+    image_planner: 80,
+    image_generator: 90,
     completed: 100,
 };
 
@@ -161,11 +163,13 @@ function setRunningState(isRunning) {
 
 
 const ORCHESTRATION_STAGES = [
+    { id: "input_guardrails", label: "Input Guardrails" },
     { id: "router", label: "Route Request" },
     { id: "research", label: "Retrieve Evidence" },
     { id: "planner", label: "Build Article Plan" },
     { id: "writing", label: "Generate Sections" },
     { id: "editor", label: "Editorial Review" },
+    { id: "output_guardrails", label: "Output Guardrails" },
     { id: "formatter", label: "Markdown Formatter" },
     { id: "image_planner", label: "Image Planner" },
     { id: "image_generator", label: "Generate Images" },
@@ -202,6 +206,8 @@ function updateStageStatus(stageId, status, detail = null) {
     if (timeline.children.length === 0) initializeTimeline();
 
     const stageMap = {
+        input_guardrails: "input_guardrails",
+
         router: "router",
         routing: "router",
 
@@ -220,6 +226,8 @@ function updateStageStatus(stageId, status, detail = null) {
         section_complete: "writing",
 
         editor: "editor",
+
+        output_guardrails: "output_guardrails",
 
         formatter: "formatter",
         markdown_formatter: "formatter",
@@ -266,7 +274,7 @@ function updateStageStatus(stageId, status, detail = null) {
         }
     }
 
-    if (status === "completed" && stageProgress[targetId] !== undefined) {
+    if ((status === "running" || status === "completed") && stageProgress[targetId] !== undefined) {
         updateProgress(stageProgress[targetId]);
     }
 }
@@ -305,8 +313,7 @@ function showPlan(plan) {
     completedTasks = 0;
 
     taskCount.textContent =
-        `${tasks.length} ${
-            tasks.length === 1 ? "task" : "tasks"
+        `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"
         }`;
 
     planMeta.hidden = false;
@@ -323,9 +330,9 @@ function showPlan(plan) {
             <span>Format</span>
             <strong>
                 ${escapeHtml(
-                    (plan.blog_kind || "explainer")
-                        .replaceAll("_", " "),
-                )}
+        (plan.blog_kind || "explainer")
+            .replaceAll("_", " "),
+    )}
             </strong>
         </div>
 
@@ -386,12 +393,12 @@ function showPlan(plan) {
                     ${wordBadgeHtml}
 
                     ${tags.map(
-                        tag => `
+            tag => `
                             <span>
                                 ${escapeHtml(tag)}
                             </span>
                         `,
-                    ).join("")}
+        ).join("")}
                 </div>
 
                 <div class="task-progress">
@@ -432,11 +439,11 @@ function completeSection(event) {
 
     totalTasks = event.total || totalTasks;
 
+    const startP = stageProgress.planner || 20;
+    const endP = stageProgress.writing || 40;
     const workerProgress = totalTasks
-        ? 35 + (
-            completedTasks / totalTasks
-        ) * 40
-        : 35;
+        ? startP + (completedTasks / totalTasks) * (endP - startP)
+        : endP;
 
     updateProgress(workerProgress);
 
@@ -562,8 +569,7 @@ function handleEvent(event) {
 
         case "images_planned":
             showToast(
-                `${event.count} visual${
-                    event.count === 1 ? "" : "s"
+                `${event.count} visual${event.count === 1 ? "" : "s"
                 } planned`,
             );
             break;
