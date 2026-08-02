@@ -42,11 +42,10 @@ const stageProgress = {
     research: 15,
     planner: 20,
     writing: 40,
-    editor: 50,
-    output_guardrails: 60,
-    formatter: 70,
-    image_planner: 80,
-    image_generator: 90,
+    editor: 60,
+    output_guardrails: 70,
+    image_planner: 85,
+    image_generator: 95,
     completed: 100,
 };
 
@@ -170,7 +169,6 @@ const ORCHESTRATION_STAGES = [
     { id: "writing", label: "Generate Sections" },
     { id: "editor", label: "Editorial Review" },
     { id: "output_guardrails", label: "Output Guardrails" },
-    { id: "formatter", label: "Markdown Formatter" },
     { id: "image_planner", label: "Image Planner" },
     { id: "image_generator", label: "Generate Images" },
     { id: "completed", label: "Completed" },
@@ -229,8 +227,8 @@ function updateStageStatus(stageId, status, detail = null) {
 
         output_guardrails: "output_guardrails",
 
-        formatter: "formatter",
-        markdown_formatter: "formatter",
+        formatter: "editor",
+        markdown_formatter: "editor",
 
         image_planner: "image_planner",
         decide_images: "image_planner",

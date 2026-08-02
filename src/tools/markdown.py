@@ -52,12 +52,21 @@ class MarkdownBuilder:
             if hasattr(img, "filename") and img.filename:
                 image_map[img.filename] = img
 
-        base_text = markdown_with_placeholders if markdown_with_placeholders else ""
+        # ALWAYS prioritize the full, complete article text from sections (state.blog_markdown)
+        full_article = "\n\n".join(sections) if sections else ""
+        base_text = full_article if full_article.strip() else (markdown_with_placeholders if markdown_with_placeholders else "")
 
-        if not base_text and sections:
-            base_text = f"# {plan.blog_title}\n\n" + "\n\n".join(sections)
-        elif base_text and not base_text.startswith("#"):
-            base_text = f"# {plan.blog_title}\n\n" + base_text
+        subtitle_text = getattr(plan, "subtitle", "") or ""
+        subtitle_block = f"*{subtitle_text.strip()}*\n\n" if subtitle_text.strip() and subtitle_text.strip() not in base_text else ""
+
+        if not base_text and plan and plan.blog_title:
+            base_text = f"# {plan.blog_title}\n\n" + subtitle_block
+        elif base_text and plan and plan.blog_title and not base_text.startswith("#"):
+            base_text = f"# {plan.blog_title}\n\n" + subtitle_block + base_text
+        elif base_text and base_text.startswith("#") and subtitle_block:
+            first_line_end = base_text.find("\n")
+            if first_line_end != -1 and subtitle_text.strip() not in base_text:
+                base_text = base_text[:first_line_end].strip() + "\n\n" + subtitle_block + base_text[first_line_end:].lstrip()
 
         # --------------------------------------------------
         # Method 1: Replace [[IMAGE_X]] placeholders inline

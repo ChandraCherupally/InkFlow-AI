@@ -599,40 +599,20 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
                     yield create_sse_event(
                         {
                             "type": "stage",
-                            "id": "formatter",
-                            "label": "Markdown Formatter",
-                            "status": "running",
-                            "detail": "Standardizing Markdown presentation...",
-                        }
-                    )
-
-                # =================================================
-                # Markdown Formatter
-                # =================================================
-                elif node_name in ("markdown_formatter", "formatter"):
-                    blog_markdown = str(node_update.get("blog_markdown", ""))
-                    if blog_markdown:
-                        final_markdown = blog_markdown
-
-                    yield create_sse_event(
-                        {
-                            "type": "stage",
-                            "id": "formatter",
-                            "label": "Markdown Formatter",
-                            "status": "completed",
-                            "detail": "Markdown presentation standardized.",
-                        }
-                    )
-
-                    yield create_sse_event(
-                        {
-                            "type": "stage",
                             "id": "image_planner",
                             "label": "Image Planner",
                             "status": "running",
                             "detail": "Planning technical visual illustrations...",
                         }
                     )
+
+                # =================================================
+                # Markdown Formatter (Pass-through)
+                # =================================================
+                elif node_name in ("markdown_formatter", "formatter"):
+                    blog_markdown = str(node_update.get("blog_markdown", ""))
+                    if blog_markdown:
+                        final_markdown = blog_markdown
 
                 # =================================================
                 # Image Planner

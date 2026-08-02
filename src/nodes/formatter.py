@@ -23,42 +23,9 @@ from src.schemas.state import BlogState
 logger = logging.getLogger(__name__)
 
 
-def markdown_formatter(state: BlogState) -> BlogState:
+def markdown_formatter(state: BlogState) -> dict[str, Any]:
     """
-    Standardize Markdown presentation and callout formatting.
+    Pass-through node. Formatting guidelines are consolidated into Senior Editorial Review node.
     """
-    logger.info("Running Markdown Formatter node...")
-
-    if not state.blog_markdown:
-        logger.warning("No blog markdown available for Markdown Formatter.")
-        return state
-
-    start_time = time.perf_counter()
-    config = get_node_config(NodeType.MARKDOWN)
-
-    prompt = PromptFactory.create(
-        system_prompt=SystemPrompts.MARKDOWN_FORMATTER,
-        human_prompt="Article Content:\n\n{article}\n",
-    )
-
-    llm = gateway.chat(NodeType.MARKDOWN)
-    chain = prompt | llm
-
-    response = chain.invoke({"article": state.blog_markdown})
-    latency_ms = (time.perf_counter() - start_time) * 1000.0
-
-    metric = cost_tracker.extract_llm_metrics(
-        response=response,
-        node_name="markdown_formatter",
-        provider=config.primary.provider,
-        model=config.primary.model,
-        latency_ms=latency_ms,
-    )
-
-    formatted_markdown = str(response.content).strip()
-    result: dict[str, Any] = {"metrics": [metric]}
-    if formatted_markdown:
-        result["blog_markdown"] = formatted_markdown
-        logger.info("Markdown Formatter completed successfully.")
-
-    return result
+    logger.info("Markdown Formatter: formatting rules consolidated into Senior Editorial Review node.")
+    return {}

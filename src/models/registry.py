@@ -54,7 +54,7 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
     # Router Node: Requires structured output
     NodeType.ROUTER: NodeModelConfig(
         node_type=NodeType.ROUTER,
-        primary=ModelProfiles.GEMINI_3_1_PRO_PREVIEW,
+        primary=ModelProfiles.GEMINI_2_5_FLASH,
         fallbacks=[ModelProfiles.GEMINI_2_5_FLASH_LITE, ModelProfiles.GPT_5_MINI],
         required_capabilities={"supports_structured_output": True},
     ),

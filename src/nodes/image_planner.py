@@ -39,9 +39,17 @@ def image_planner(state: BlogState) -> BlogState:
     start_time = time.perf_counter()
     config = get_node_config(NodeType.IMAGE_PLANNER)
 
+    if state.plan and state.plan.tasks:
+        article_context = f"Topic: {state.topic}\nAudience: {state.plan.audience}\nFormat: {state.plan.blog_kind}\n\nArticle Sections:\n" + "\n".join(
+            f"Section {t.id}: {t.title}\nGoal: {t.goal}\nKey Points: {', '.join(t.bullets[:3])}"
+            for t in state.plan.tasks
+        )
+    else:
+        article_context = f"Topic: {state.topic}\n\nContent:\n{state.blog_markdown[:1500]}"
+
     prompt = PromptFactory.create(
         system_prompt=SystemPrompts.IMAGE_PLANNER,
-        human_prompt="Article Content:\n\n{article}\n",
+        human_prompt="Article Structure & Goals:\n\n{article}\n",
     )
 
     llm = gateway.chat(NodeType.IMAGE_PLANNER).with_structured_output(
@@ -49,7 +57,7 @@ def image_planner(state: BlogState) -> BlogState:
     )
     chain = prompt | llm
 
-    raw_res = chain.invoke({"article": state.blog_markdown})
+    raw_res = chain.invoke({"article": article_context})
     latency_ms = (time.perf_counter() - start_time) * 1000.0
 
     if isinstance(raw_res, dict) and "parsed" in raw_res:

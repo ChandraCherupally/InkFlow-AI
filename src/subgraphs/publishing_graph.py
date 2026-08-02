@@ -41,14 +41,13 @@ def fanout_images(state: BlogState):
 def build_publishing_graph():
     """
     Build and compile the PublishingGraph.
-    Flow: merge_content -> editor -> output_guardrails -> markdown_formatter -> image_planner -> image_worker -> assemble_publishing
+    Flow: merge_content -> editor -> output_guardrails -> image_planner -> image_worker -> assemble_publishing
     """
     builder = StateGraph(BlogState)
 
     builder.add_node("merge_content", merge_content)
     builder.add_node("editor", editor)
     builder.add_node("output_guardrails", output_guardrails)
-    builder.add_node("markdown_formatter", markdown_formatter)
     builder.add_node("image_planner", image_planner)
     builder.add_node("image_worker", image_worker)
     builder.add_node("assemble_publishing", assemble_publishing)
@@ -57,8 +56,7 @@ def build_publishing_graph():
     builder.add_edge(START, "merge_content")
     builder.add_edge("merge_content", "editor")
     builder.add_edge("editor", "output_guardrails")
-    builder.add_edge("output_guardrails", "markdown_formatter")
-    builder.add_edge("markdown_formatter", "image_planner")
+    builder.add_edge("output_guardrails", "image_planner")
 
     # Image Generation Fanout
     builder.add_conditional_edges(

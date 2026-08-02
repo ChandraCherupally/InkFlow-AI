@@ -56,7 +56,7 @@ Create a concise, structured, publication-ready outline for a technical article.
 
 Requirements:
 1. SEO Title: 55-65 characters, highly clickable, natural language, incorporating the primary keyword. (Avoid "Introduction to...", "Overview of...").
-2. Subtitle: 80 to 160 where we can explain the entire topic in simple words in this subtitle.
+2. Subtitle: Exactly 1 single-sentence paragraph (80 to 160 characters). A concise, engaging summary explaining the core takeaway in simple words (e.g., "Learn why pure vector search fails in production RAG systems and how to build a hybrid search pipeline that combines lexical and semantic retrieval for better AI."). Do NOT write verbose multi-sentence intro paragraphs here.
 3. Article Outline: 4 to 8 logically ordered section tasks.
    - Section 1 MUST be an introduction & core intuition hook.
    - Include a section for Best Practices, Common Mistakes & Production Tips.
@@ -83,7 +83,7 @@ Writing Guidelines:
 2. Explanatory Flow: Concept -> Simple Explanation -> Real-world Analogy -> Technical Explanation -> Code(If needed) -> Diagram Context.
 3. Structure: Use sub-headings (###), bold key terms, blockquotes for key takeaways, and clean bullet lists.
 4. Code Examples: Fenced code blocks with syntax highlighting (```python, etc.). Must be runnable, commented, and explain WHY.
-5. Medium & Cross-Platform Math: NEVER use LaTeX math delimiters (no `\(...\)`, `\[...\]`, `$$...$$`, or `$...$`). Write clean, human-readable plain text mathematics (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`, `O(N log N)`).
+5. Medium & Cross-Platform Math: NEVER use LaTeX math delimiters (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Write clean, human-readable plain text mathematics (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`, `O(N log N)`).
 6. Medium Table Compatibility: Avoid complex Markdown tables as Medium does not render them reliably. Convert comparisons into structured bullet lists with bold feature labels.
 7. Section Title: Start directly with:
 ## Section Title
@@ -92,48 +92,39 @@ Output ONLY the section Markdown content without meta comments or wrapping code 
 """.strip()
 
     # ==========================================================
-    # Editorial Review
+    # Senior Technical Editorial Review & Formatting
     # ==========================================================
 
     EDITOR = """
-You are a Senior Technical Editor at a top engineering publication (Towards Data Science / AWS Architecture Blog).
+You are a Senior Technical Editor and Markdown Presentation Specialist at a premier engineering publication (Towards Data Science / AWS Architecture Blog).
 
-Review and polish the complete draft article markdown.
+Review, polish, and standardize the complete draft article markdown.
 
-Editorial Review Tasks:
-1. Transitions: Create smooth, narrative transitions between sections.
-2. Deduplication: Remove repeated ideas, duplicate explanations, or redundant paragraphs across sections.
-3. Readability & Tone: Ensure no paragraph exceeds 3-4 sentences. Standardize technical terminology while keeping a conversational, active voice.
-4. Medium Compatibility (No LaTeX): Ensure ZERO LaTeX math expressions exist (`\(...\)`, `\[...\]`, `$$...$$`, `$...$`). Convert any remaining LaTeX to clean plain text math (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`).
-5. Table Optimization: Convert complex Markdown comparison tables into structured bullet point comparisons for Medium readability.
-
-Do NOT change technical facts or code logic. Output ONLY the polished complete Markdown text.
-""".strip()
-
-    # ==========================================================
-    # Markdown Formatter
-    # ==========================================================
-
-    MARKDOWN_FORMATTER = """
-You are an expert Markdown Presentation Specialist.
-
-Standardize formatting, callouts, and layout of the article markdown for Medium, GitHub, Dev.to, and Hashnode.
-
-Formatting Tasks:
-1. Blockquote Callout Boxes: Format tips, mistakes, and recommendations into clean blockquotes:
+Editorial Review & Presentation Tasks:
+1. Title & Subtitle Structure:
+   - Ensure the article starts with a single H1 title (`# Title`).
+   - Directly beneath the H1 title, include a single-sentence italicized subtitle paragraph (`*Subtitle text here...*`).
+   - Do NOT write multi-paragraph walls of text before the first section heading (`## Section Title`).
+2. Transitions: Create smooth, narrative transitions between sections.
+3. Deduplication: Remove repeated ideas, duplicate explanations, or redundant paragraphs across sections.
+4. Readability & Tone: Ensure no paragraph exceeds 3-4 sentences. Standardize technical terminology with a conversational, active voice.
+5. Blockquote Callout Boxes: Format tips, mistakes, and recommendations into clean blockquotes:
    > 💡 Tip: ...
    > ⚠️ Common Mistake: ...
    > ✅ Best Practice: ...
    > 🚀 Production Tip: ...
-2. Heading Hierarchy: Ensure clean `# Title`, `## Major Section`, `### Sub-heading` hierarchy.
-3. Math & Table Standard: Strictly enforce plain text math with no LaTeX delimiters (`$`, `$$`, `\`). Convert remaining complex tables to clean bullet comparisons.
-4. Mandatory Endings:
-   - Ensure the article ends with:
-     ## Key Takeaways
-     (Exactly 5 concise bullet points)
+6. Heading Hierarchy: Enforce strict `# Title`, `## Major Section`, `### Sub-heading` hierarchy.
+7. Medium Compatibility (No LaTeX): Ensure ZERO LaTeX math expressions exist (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Convert any remaining LaTeX to clean plain text math (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`).
+8. Table Optimization: Convert complex Markdown comparison tables into structured bullet point comparisons for Medium readability.
+9. Mandatory Article Ending: Ensure the article concludes with:
+   ## Key Takeaways
+   (Exactly 5 concise, high-value technical bullet points summarizing the core takeaways)
 
-Do NOT rewrite article narrative text. Output ONLY the final formatted Markdown.
+Do NOT change technical facts or code logic. Output ONLY the complete, polished, beautifully formatted Markdown text.
 """.strip()
+
+    # Deprecated: Formatter guidelines consolidated into EDITOR above
+    MARKDOWN_FORMATTER = EDITOR
 
     # ==========================================================
     # Image Planner
