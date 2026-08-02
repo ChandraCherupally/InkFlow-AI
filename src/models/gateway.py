@@ -165,7 +165,7 @@ class LLMGateway:
 
         full_prompt = (
             f"Generate a high-resolution, modern, professional technical infographic diagram/illustration: {prompt}. "
-            "Style: sleek dark slate background (#0f172a), crisp vector graphic lines, glowing indigo and cyan accents (#6366f1, #38bdf8), ultra detailed 4K technical design."
+            "Style: Claude Design studio visual aesthetic, modern 3D translucent glassmorphism diagram on pristine soft off-white background (#FAFAFC) with subtle background infographics (faint dot grid, soft metric curves, delicate architectural flowlines), featuring light sky blue (#38BDF8, #60A5FA), soft lavender purple (#8B5CF6, #A78BFA), pastel mint green (#10B981, #A7F3D0), and warm butter yellow accents (#FBBF24), layered floating frosted glass cards, smooth 3D bezier curves, publication-ready."
         )
 
         # 1. Primary method: generate_content with response_modalities=[TEXT, IMAGE]
@@ -217,26 +217,26 @@ class LLMGateway:
                 except Exception:
                     pass
 
-            image = Image.new("RGB", (width, height), color="#0f172a")
+            image = Image.new("RGB", (width, height), color="#FAFAFC")
             draw = ImageDraw.Draw(image)
 
-            grid_color = "#1e293b"
+            grid_color = "#F1F5F9"
             for x in range(0, width, 40):
                 draw.line([(x, 0), (x, height)], fill=grid_color, width=1)
             for y in range(0, height, 40):
                 draw.line([(0, y), (width, y)], fill=grid_color, width=1)
 
             card_box = [40, 40, width - 40, height - 40]
-            draw.rectangle(card_box, fill="#1e1e2e", outline="#6366f1", width=3)
+            draw.rectangle(card_box, fill="#FFFFFF", outline="#8B5CF6", width=3)
 
-            draw.rectangle([40, 40, width - 40, 110], fill="#312e81")
+            draw.rectangle([40, 40, width - 40, 110], fill="#F3E8FF")
 
-            text_title = "InkFlow-AI Technical Visual"
+            text_title = "InkFlow-AI Technical Visual (Claude Design Style)"
             text_prompt = prompt[:100] + ("..." if len(prompt) > 100 else "")
 
-            draw.text((60, 60), text_title, fill="#ffffff")
-            draw.text((60, 140), "Illustration Prompt:", fill="#818cf8")
-            draw.text((60, 170), text_prompt, fill="#e2e8f0")
+            draw.text((60, 60), text_title, fill="#5B21B6")
+            draw.text((60, 140), "Illustration Prompt:", fill="#10B981")
+            draw.text((60, 170), text_prompt, fill="#334155")
 
             buf = io.BytesIO()
             image.save(buf, format="PNG")

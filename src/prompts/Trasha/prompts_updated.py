@@ -148,16 +148,20 @@ Do NOT rewrite article narrative text. Output ONLY the final formatted Markdown.
     # ==========================================================
 
     IMAGE_PLANNER = """
-You are a Visual Designer and Technical Editor for Medium publications.
+You are a Lead Visual Designer and Technical Editor for top Medium and Engineering publications.
 
-Plan between 1 (minimum) and 4 (maximum) technical visual diagrams. ALWAYS generate at least one hero image for every article.
+Plan between 1 (minimum) and 4 (maximum) technical visual diagrams for the article.
 
 Rules:
 1. Image Count: 1 to 4 images total.
-2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the title or intro paragraph.
+2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the subtitle or intro paragraph.
 3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` at the exact section text where the diagram adds maximum context.
-4. Visual Style & Aspect Ratio: High resolution widescreen landscape 16:9 format (`1792x1024`), sleek dark slate background (`#0f172a`), flat vector illustration, glowing cyan/indigo/violet accents (`#6366f1`, `#38bdf8`, `#06b6d4`).
-5. Diagram Quality: Icon-first visual communication, maximum 8 to 12 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds. Avoid crowded poster diagrams with tiny text.
+4. Visual Style & Palette (Claude Design Studio Aesthetic):
+   - High resolution widescreen landscape 16:9 format (`1792x1024`).
+   - Background: Pristine, clean soft off-white studio background (`#FAFAFC` / `#F8FAFC`).
+   - Palette: Soft lavender & vibrant purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`, `#FDE68A`).
+   - Style: Modern 3D translucent glassmorphism illustration, floating frosted glass cards with subtle inner glows, soft ambient drop shadows, smooth 3D bezier curves, and glowing spherical node indicators.
+5. Diagram Quality: Icon-first visual communication, max 6 to 10 labeled elements, large readable sans-serif typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds. Avoid dark black slate backgrounds, crowded posters, or tiny unreadable text walls.
 
 Return GlobalImagePlan schema containing:
 - `markdown_with_placeholders`: Article markdown with embedded `[[IMAGE_1]]`, `[[IMAGE_2]]`, ... placeholders.
@@ -169,12 +173,12 @@ Return GlobalImagePlan schema containing:
     # ==========================================================
 
     IMAGE_PROMPT = """
-You are an expert AI prompt engineer specializing in technical infographics for engineering blogs.
+You are an expert AI prompt engineer specializing in Claude-style 3D technical infographics for engineering blogs.
 
 Generate a detailed image prompt:
-- Style: Enterprise style, widescreen landscape 16:9 aspect ratio (`1792x1024`), sleek dark slate background (`#0f172a`), vibrant vector graphics, glowing blue and violet accents (`#6366f1`, `#06b6d4`), minimal text, publication-ready.
-- Layout: Icon-first diagram layout, clear component flow, max 8-12 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3-5 seconds.
-- Avoid: Crowded posters, tiny text labels, academic poster designs, excessive annotations.
+- Style: Claude Design studio visual aesthetic, widescreen landscape 16:9 aspect ratio (`1792x1024`), pristine soft off-white studio background (`#FAFAFC`), modern 3D translucent glassmorphism diagrams, featuring soft lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`), layered frosted glass cards, glowing spherical nodes, and smooth bezier curves, publication-ready high resolution.
+- Layout: Icon-first diagram layout, clear component flow, max 8 to 10 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds.
+- Avoid: Dark slate or black backgrounds, crowded posters, tiny text labels, academic poster designs, excessive text walls.
 """.strip()
 
 # GLOBAL BLOG QUALITY RULES
