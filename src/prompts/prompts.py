@@ -63,12 +63,12 @@ Requirements:
    - Real-World Applications Section: Titled `## Real-World Applications` (250-400 words). Cover practical production use cases (e.g. Recommendation Systems, Search & Retrieval, Computer Vision, NLP Embeddings, Customer Segmentation, Fraud Detection, Bioinformatics, Time-Series Feature Engineering). Focus on measurable engineering value without unnecessary theory.
    - Decision Matrix Section: Titled `## When Should You Use Each Technique?` (or contextually matching e.g. `## When Should You Use Which Approach?`). Use a clean 3-column Markdown table (`| Goal | Recommended Technique | Reason |`) for quick scanning.
    - Production Guardrails Section: Best Practices, Common Mistakes & Operational Tips.
-   - Context-Aware Closing Section: Choose EXACTLY ONE ending title matching article intent:
-     * Tutorials / Hands-on → `## Key Takeaways`
+   - Context-Aware Closing Section: You MUST select the exact closing section title matching the article's intent/category:
+     * Tutorials / Hands-on / Code-First Guides → `## Key Takeaways`
      * Architecture / System Guides → `## Final Thoughts`
      * Comparisons / Benchmarks → `## Choosing the Right Approach`
-     * Best Practices / Guardrails → `## Practical Recommendations`
-     * Conceptual Explanations → `## Summary`
+     * Best Practices / Operational Guides → `## Practical Recommendations`
+     * Conceptual / Intuition Explanations → `## Summary`
 4. Task Details: For every section specify:
    - title: Catchy, professional section heading.
    - goal: Practical learning takeaway for developers.
@@ -89,7 +89,7 @@ Write ONE comprehensive, engaging Markdown section for the article.
 Writing Guidelines:
 1. Readability: Paragraphs MUST be short (maximum 3-4 sentences). Never write walls of text.
 2. Explanatory Flow: Concept -> Simple Explanation -> Real-world Analogy -> Technical Explanation -> Code(If needed) -> Diagram Context.
-3. Structure: Use sub-headings (###), bold key terms, blockquotes for key takeaways, and clean bullet lists.
+3. Structure: Use sub-headings (###), bold key terms, blockquotes for key takeaways, and clean bullet lists. Keep sub-heading titles clean, concise, professional, and free of emojis (emojis belong in blockquotes `> ✅ Best Practice:` only). Do NOT write repetitive word headings like "Evaluate, Evaluate, Evaluate".
 4. Code Examples: Fenced code blocks with syntax highlighting (```python, etc.). Must be runnable, commented, and explain WHY.
 5. Medium & Cross-Platform Math: NEVER use LaTeX math delimiters (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Write clean, human-readable plain text mathematics (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`, `O(N log N)`).
 6. Markdown Tables: Format decision matrices into clean 3-column Markdown tables (`| Goal | Recommended Technique | Reason |`). Keep tables concise and scannable.
@@ -121,13 +121,14 @@ Editorial Review & Presentation Tasks:
    > ⚠️ Common Mistake: ...
    > ✅ Best Practice: ...
    > 🚀 Production Tip: ...
-6. Heading Hierarchy: Enforce strict `# Title`, `## Major Section`, `### Sub-heading` hierarchy.
+6. Heading Hierarchy & Clean Titles: Enforce strict `# Title`, `## Major Section`, `### Sub-heading` hierarchy. Ensure all `### ` sub-heading titles are clean, professional, and non-repetitive (remove emojis from sub-headings and convert repetitive phrases like "Evaluate, Evaluate, Evaluate" into clean technical titles like "Continuous Metric Evaluation").
 7. Medium Compatibility (No LaTeX): Ensure ZERO LaTeX math expressions exist (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Convert any remaining LaTeX to clean plain text math (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`).
 8. Markdown Table Formatting: Format decision matrices into clean 3-column Markdown tables (`| Goal | Recommended Technique | Reason |`). Keep tables concise and scannable.
-9. Context-Aware Article Ending: Preserve or polish the article's single concluding section (`## Final Thoughts`, `## Key Takeaways`, `## Choosing the Right Approach`, `## Practical Recommendations`, or `## Summary`). Do NOT duplicate closing sections. If using a paragraph conclusion (e.g. `## Final Thoughts`), ensure it is approximately 150-250 words summarizing core ideas, why selecting the right technique matters in production, and encouraging practical experimentation in a professional educational tone. If using bullet points, ensure 4-5 concise high-value points.
+9. Article Ending Preservation: Preserve the exact closing section title provided in the draft (e.g. `## Key Takeaways`, `## Choosing the Right Approach`, `## Final Thoughts`, `## Practical Recommendations`, or `## Summary`). Do NOT change the section heading title to "Final Thoughts" unless that is the exact title written in the draft. Ensure paragraph conclusions are 150-250 words, and bullet conclusions contain 4-5 concise high-value points.
 
 Do NOT change technical facts or code logic. Output ONLY the complete, polished, beautifully formatted Markdown text.
 """.strip()
+
 
     # Deprecated: Formatter guidelines consolidated into EDITOR above
     MARKDOWN_FORMATTER = EDITOR
