@@ -12,8 +12,6 @@ import logging
 
 import time
 
-from src.models.registry import get_node_config
-from src.models.types import NodeType
 from src.observability.cost_tracker import cost_tracker
 from src.schemas.models import EvidenceItem, EvidencePack
 from src.schemas.state import BlogState
@@ -30,8 +28,6 @@ def tavily_worker(state: dict) -> dict:
     logger.info("Executing parallel Tavily search query: '%s'", query)
 
     start_time = time.perf_counter()
-    config = get_node_config(NodeType.RESEARCH)
-
     evidence_pack = web_search.search(queries=[query])
     latency_ms = (time.perf_counter() - start_time) * 1000.0
     items = evidence_pack.evidence if evidence_pack else []

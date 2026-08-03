@@ -37,17 +37,6 @@ class ModelProfiles:
         temperature=1.0,
     )
 
-    # Gemini 2.5 Flash Lite (Router / Fast tasks via Vertex AI)
-    GEMINI_3_1_PRO_PREVIEW = ModelProfile(
-        provider=Providers.VERTEX_AI,
-        model="vertex_ai/gemini-3.1-pro-preview",
-        supports_structured_output=True,
-        supports_reasoning=False,
-        supports_streaming=True,
-        max_context_tokens=1048576,
-        temperature=1.0,
-    )
-
     # Gemini 2.5 Flash (Research / Markdown tasks via Vertex AI)
     GEMINI_2_5_FLASH = ModelProfile(
         provider=Providers.VERTEX_AI,
@@ -107,16 +96,7 @@ class ModelProfiles:
     # Image Generation Models
     # ==========================================================
 
-    # Primary: Gemini Flash Image (Google GenAI Enterprise SDK)imagen-3.0-generate-002"
-    GEMINI_25_FLASH_IMAGE = ModelProfile(
-        provider=Providers.VERTEX_AI,
-        model="gemini-2.5-flash-image",
-        supports_structured_output=False,
-        supports_reasoning=False,
-        supports_streaming=False,
-        supports_images=True,
-    )
-    
+    # Primary: Gemini 3 Pro Image (Google GenAI Enterprise SDK)
     GEMINI_FLASH_IMAGE = ModelProfile(
         provider=Providers.VERTEX_AI,
         model="gemini-3-pro-image",

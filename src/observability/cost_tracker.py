@@ -4,6 +4,7 @@ Lightweight Cost Tracking & Observability for InkFlow-AI.
 Responsibilities:
 - Create standardized node execution metric records.
 - Extract token counts and costs from LiteLLM/LangChain responses.
+- Calculate deterministic custom costs for image generation models.
 - Aggregate workflow execution summary metrics.
 """
 
@@ -13,10 +14,73 @@ from datetime import datetime, timezone
 import logging
 from typing import Any
 
-from litellm import completion_cost, model_cost
+from litellm import completion_cost
 from litellm.types.utils import ModelResponse, Usage
 
 logger = logging.getLogger(__name__)
+
+# Official / Custom Image Model Pricing Table per Resolution Tier
+IMAGE_PRICING: dict[str, dict[str, float]] = {
+    "gemini-3-pro-image": {
+        "1k": 0.134,
+        "2k": 0.134,
+        "4k": 0.240,
+    },
+    "gemini-3.1-flash-image": {
+        "1k": 0.045,
+        "2k": 0.045,
+        "4k": 0.080,
+    },
+    "imagen-3": {
+        "1k": 0.030,
+        "2k": 0.030,
+        "4k": 0.060,
+    },
+    "dall-e-3": {
+        "1k": 0.040,
+        "2k": 0.080,
+        "4k": 0.120,
+    },
+    "dall-e-2": {
+        "1k": 0.020,
+        "2k": 0.020,
+        "4k": 0.020,
+    },
+}
+
+
+def get_image_resolution_tier(size: str) -> str:
+    """
+    Map resolution size string (e.g. '1024x1024', '2560x1440') to pricing tier ('1k', '2k', '4k').
+    """
+    if not size or not isinstance(size, str):
+        return "2k"
+
+    s = size.strip().lower()
+
+    # Exact / common resolution mappings
+    if s in ("1024x1024", "1024*1024", "1k", "512x512", "768x768"):
+        return "1k"
+    if s in ("2048x2048", "2560x1440", "1920x1080", "1792x1024", "2k"):
+        return "2k"
+    if s in ("3840x2160", "4096x4096", "4k", "4096x2160"):
+        return "4k"
+
+    # Dimension parsing fallback (e.g. max side dimension check)
+    try:
+        if "x" in s:
+            parts = s.split("x")
+            max_dim = max(int(parts[0]), int(parts[1]))
+            if max_dim <= 1280:
+                return "1k"
+            elif max_dim <= 2880:
+                return "2k"
+            else:
+                return "4k"
+    except Exception:
+        pass
+
+    return "2k"
 
 
 def calculate_image_cost(
@@ -26,53 +90,32 @@ def calculate_image_cost(
     n: int = 1,
 ) -> float:
     """
-    Calculate USD cost for image generation models using LiteLLM completion_cost
-    or model_cost dictionary lookup with fallback rate table.
+    Calculate deterministic USD cost for image generation models using custom pricing table.
+    Bypasses LiteLLM completion_cost for image models.
     """
     if not model_name or "placeholder" in model_name.lower():
         return 0.0
 
-    # 1. Try completion_cost for image_generation
-    try:
-        c = completion_cost(
-            model=model_name,
-            call_type="image_generation",
-            size=size,
-            quality=quality,
-            n=n,
-        )
-        if c is not None and c > 0:
-            return float(c)
-    except Exception:
-        pass
+    raw_model = str(model_name).lower().strip()
+    if "/" in raw_model:
+        raw_model = raw_model.split("/")[-1]
 
-    # 2. Check LiteLLM internal model_cost map lookup
-    candidates = [
-        model_name,
-        f"openai/{model_name}",
-        f"gemini/{model_name}",
-        f"vertex_ai/{model_name}",
-    ]
-    for key in candidates:
-        entry = model_cost.get(key)
-        if entry:
-            per_img = entry.get("input_cost_per_image") or entry.get("output_cost_per_image")
-            if per_img and float(per_img) > 0:
-                return float(per_img) * n
+    # Map model name string to IMAGE_PRICING key
+    matched_key = None
+    for key in IMAGE_PRICING:
+        if key in raw_model:
+            matched_key = key
+            break
 
-    # 3. Known provider pricing fallbacks
-    FALLBACKS = {
-        "dall-e-3": 0.040,
-        "dall-e-2": 0.020,
-        "imagen-3": 0.030,
-        "gemini-3-pro-image": 0.030,
-        "gemini-3.1-flash-image": 0.020,
-    }
-    for k, rate in FALLBACKS.items():
-        if k in model_name.lower():
-            return rate * n
+    if not matched_key:
+        logger.warning("Unknown image pricing for model: %s", model_name)
+        return 0.0
 
-    return 0.0
+    tier = get_image_resolution_tier(size)
+    tier_prices = IMAGE_PRICING[matched_key]
+    price_per_image = tier_prices.get(tier, tier_prices.get("2k", 0.0))
+
+    return round(price_per_image * n, 6)
 
 
 class CostTracker:

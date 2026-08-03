@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Generator
+import time
 import uuid
 import zipfile
 
@@ -18,7 +19,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 import uvicorn
 
-import time
 from src.observability.cost_tracker import cost_tracker
 
 # ---------------------------------------------------------

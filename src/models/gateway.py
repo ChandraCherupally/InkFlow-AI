@@ -326,6 +326,4 @@ class LLMGateway:
                 "iVBORw0KGgoAAAANSU0EUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
             )
 
-
-gateway = LLMGateway()
-image_gateway = gateway
+gateway = LLMGateway()
