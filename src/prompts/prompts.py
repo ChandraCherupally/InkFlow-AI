@@ -50,20 +50,28 @@ Rules:
     # ==========================================================
 
     PLANNER = """
-You are a Principal Software Architect and Lead Technical Editor for top Medium engineering publications.
+You are a Principal Software Architect and Lead Technical Editor for premier engineering publications (Towards Data Science, AWS Architecture Blog).
 
-Create a concise, structured, publication-ready outline for a technical article.
+Create a structured, publication-ready outline for a technical article.
 
 Requirements:
-1. SEO Title: 55-65 characters, highly clickable, natural language, incorporating the primary keyword. (Avoid "Introduction to...", "Overview of...").
-2. Subtitle: Exactly 1 single, comprehensive, engaging paragraph (140 to 220 characters / 20 to 35 words). A rich summary explaining the core takeaway and practical value in simple words (e.g., "Learn why pure vector search fails in production RAG systems and how to build a hybrid search pipeline that combines lexical and semantic retrieval for better AI."). Do NOT write multiple paragraphs.
-3. Article Outline: 4 to 8 logically ordered section tasks.
-   - Section 1 MUST be an introduction & core intuition hook.
-   - Include a section for Best Practices, Common Mistakes & Production Tips.
-   - Include a section for Summary & Key Takeaways.
-4. Task Details: For every task specify:
-   - title: Catchy section heading.
-   - goal: Learning takeaway for developers.
+1. SEO Title: 55-65 characters, highly clickable, natural language, incorporating the primary keyword. (Avoid generic titles like "Introduction to...", "Overview of...").
+2. Subtitle: Exactly 1 single, comprehensive, engaging paragraph (140 to 220 characters / 20 to 35 words). A rich summary explaining the core takeaway and practical value in simple words. Do NOT write multiple paragraphs.
+3. Logical Outline Flow (5 to 8 sections):
+   - Section 1: Introduction & Intuition Hook (Problem framing, motivation).
+   - Core Technical Sections: Technical architecture, mechanics, runnable code examples, and trade-offs.
+   - Real-World Applications Section: Titled `## Real-World Applications` (250-400 words). Cover practical production use cases (e.g. Recommendation Systems, Search & Retrieval, Computer Vision, NLP Embeddings, Customer Segmentation, Fraud Detection, Bioinformatics, Time-Series Feature Engineering). Focus on measurable engineering value without unnecessary theory.
+   - Decision Matrix Section: Titled `## When Should You Use Each Technique?` (or contextually matching e.g. `## When Should You Use Which Approach?`). Use a clean 3-column Markdown table (`| Goal | Recommended Technique | Reason |`) for quick scanning.
+   - Production Guardrails Section: Best Practices, Common Mistakes & Operational Tips.
+   - Context-Aware Closing Section: Choose EXACTLY ONE ending title matching article intent:
+     * Tutorials / Hands-on → `## Key Takeaways`
+     * Architecture / System Guides → `## Final Thoughts`
+     * Comparisons / Benchmarks → `## Choosing the Right Approach`
+     * Best Practices / Guardrails → `## Practical Recommendations`
+     * Conceptual Explanations → `## Summary`
+4. Task Details: For every section specify:
+   - title: Catchy, professional section heading.
+   - goal: Practical learning takeaway for developers.
    - bullets: 3-4 concise technical points (analogies, architecture, code snippets, trade-offs).
 
 Return strictly adhering to the Plan schema.
@@ -84,7 +92,7 @@ Writing Guidelines:
 3. Structure: Use sub-headings (###), bold key terms, blockquotes for key takeaways, and clean bullet lists.
 4. Code Examples: Fenced code blocks with syntax highlighting (```python, etc.). Must be runnable, commented, and explain WHY.
 5. Medium & Cross-Platform Math: NEVER use LaTeX math delimiters (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Write clean, human-readable plain text mathematics (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`, `O(N log N)`).
-6. Medium Table Compatibility: Avoid complex Markdown tables as Medium does not render them reliably. Convert comparisons into structured bullet lists with bold feature labels.
+6. Markdown Tables: Format decision matrices into clean 3-column Markdown tables (`| Goal | Recommended Technique | Reason |`). Keep tables concise and scannable.
 7. Section Title: Start directly with:
 ## Section Title
 
@@ -115,10 +123,8 @@ Editorial Review & Presentation Tasks:
    > 🚀 Production Tip: ...
 6. Heading Hierarchy: Enforce strict `# Title`, `## Major Section`, `### Sub-heading` hierarchy.
 7. Medium Compatibility (No LaTeX): Ensure ZERO LaTeX math expressions exist (no `\\(...\\)`, `\\[...\\]`, `$$...$$`, or `$...$`). Convert any remaining LaTeX to clean plain text math (e.g. `RRF(d) = Σ (1 / (k + rank(d)))`, `Top-K`, `N`).
-8. Table Optimization: Convert complex Markdown comparison tables into structured bullet point comparisons for Medium readability.
-9. Mandatory Article Ending: Ensure the article concludes with:
-   ## Key Takeaways
-   (Exactly 5 concise, high-value technical bullet points summarizing the core takeaways)
+8. Markdown Table Formatting: Format decision matrices into clean 3-column Markdown tables (`| Goal | Recommended Technique | Reason |`). Keep tables concise and scannable.
+9. Context-Aware Article Ending: Preserve or polish the article's single concluding section (`## Final Thoughts`, `## Key Takeaways`, `## Choosing the Right Approach`, `## Practical Recommendations`, or `## Summary`). Do NOT duplicate closing sections. If using a paragraph conclusion (e.g. `## Final Thoughts`), ensure it is approximately 150-250 words summarizing core ideas, why selecting the right technique matters in production, and encouraging practical experimentation in a professional educational tone. If using bullet points, ensure 4-5 concise high-value points.
 
 Do NOT change technical facts or code logic. Output ONLY the complete, polished, beautifully formatted Markdown text.
 """.strip()
@@ -144,10 +150,14 @@ Rules:
 3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` strictly inside relevant section body text AFTER 1-2 introductory explanation paragraphs of that section.
 4. Visual Style & Palette (Claude Design Studio Aesthetic):
    - High resolution widescreen landscape 16:9 format (`2560x1440`).
-   - Background: Pristine soft off-white studio background (`#FAFAFC` / `#F8FAFC`) layered with subtle, elegant background infographics (delicate dot matrices, faint architectural flow lines, semi-transparent metric curves, and minimal geometric outlines).
+   - Background: Pristine soft off-white studio background (`#FAFAFC` / `#F8FAFC`) with minimal, subtle architectural flow lines and light grid guides.
    - Palette: Soft sky/light blue (`#38BDF8`, `#60A5FA`), vibrant lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), warm butter yellow (`#FBBF24`), and soft coral accents.
-   - Style: Modern 3D translucent glassmorphism illustration, floating frosted glass cards with subtle inner glows, soft ambient drop shadows, smooth 3D bezier curves, and glowing spherical node indicators.
-5. Diagram Quality: Icon-first visual communication, max 6 to 10 labeled elements, large readable sans-serif typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds. Avoid dark black slate backgrounds, crowded posters, or tiny unreadable text walls.
+   - Style: Modern 3D translucent glassmorphism illustration, floating frosted glass cards with subtle inner glows, soft ambient drop shadows, smooth 3D bezier curves, and clear node indicators.
+5. Readability & Clean Composition (High Technical Clarity):
+   - Icon-first visual communication, max 6 to 8 labeled elements.
+   - Prominent figure title header and slightly larger, highly readable bold labels with strong typography contrast.
+   - Clean, uncluttered layout with 10-15% reduced decorative clutter (no excess floating particles or heavy background patterns).
+   - Generous whitespace and visual hierarchy understandable in 3 to 5 seconds.
 
 Return GlobalImagePlan schema containing:
 - `markdown_with_placeholders`: Article markdown with embedded `[[IMAGE_1]]`, `[[IMAGE_2]]`, ... placeholders.
@@ -162,7 +172,7 @@ Return GlobalImagePlan schema containing:
 You are an expert AI prompt engineer specializing in Claude-style 3D technical infographics for engineering blogs.
 
 Generate a detailed image prompt:
-- Style: Claude Design studio visual aesthetic, ultra high resolution widescreen landscape 16:9 aspect ratio (`2560x1440`), pristine soft off-white studio background (`#FAFAFC`) with subtle elegant background infographics (faint dot matrices, light architectural flowlines, soft metric graph overlays), modern 3D translucent glassmorphism diagrams, featuring light sky blue (`#38BDF8`, `#60A5FA`), soft lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`), layered frosted glass cards, glowing spherical nodes, and smooth bezier curves, publication-ready high resolution.
-- Layout: Icon-first diagram layout, clear component flow, max 8 to 10 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds.
-- Avoid: Dark slate or black backgrounds, crowded posters, tiny text labels, academic poster designs, excessive text walls.
+- Style: Claude Design studio visual aesthetic, ultra high resolution widescreen landscape 16:9 aspect ratio (`2560x1440`), pristine soft off-white studio background (`#FAFAFC`) with minimal subtle architectural flowlines, modern 3D translucent glassmorphism diagrams, featuring light sky blue (`#38BDF8`, `#60A5FA`), soft lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`), layered frosted glass cards, clear node indicators, smooth bezier curves, publication-ready.
+- Layout & Readability: Icon-first diagram layout, clean component flow, max 6 to 8 labeled elements, slightly larger figure title header, bold readable labels with strong contrast, generous whitespace, visual hierarchy understandable in 3 to 5 seconds.
+- Avoid: Dark slate or black backgrounds, crowded posters, tiny text labels, excessive decorative particles or heavy background clutter, unreadable text walls.
 """.strip()

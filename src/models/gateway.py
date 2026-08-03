@@ -244,8 +244,9 @@ class LLMGateway:
 
         full_prompt = (
             f"Generate a high-resolution, modern, professional technical infographic diagram/illustration: {prompt}. "
-            "Style: Claude Design studio visual aesthetic, modern 3D translucent glassmorphism diagram on pristine soft off-white background (#FAFAFC) with subtle background infographics (faint dot grid, soft metric curves, delicate architectural flowlines), featuring light sky blue (#38BDF8, #60A5FA), soft lavender purple (#8B5CF6, #A78BFA), pastel mint green (#10B981, #A7F3D0), and warm butter yellow accents (#FBBF24), layered floating frosted glass cards, smooth 3D bezier curves, publication-ready."
+            "Style: Claude Design studio visual aesthetic, modern 3D translucent glassmorphism diagram on pristine soft off-white background (#FAFAFC) with minimal subtle architectural flowlines, featuring light sky blue (#38BDF8, #60A5FA), soft lavender purple (#8B5CF6, #A78BFA), pastel mint green (#10B981, #A7F3D0), and warm butter yellow accents (#FBBF24), layered floating frosted glass cards, prominent figure title header, bold readable text labels with strong contrast, smooth 3D bezier curves, clean uncluttered layout, publication-ready."
         )
+
 
         # 1. Primary method: generate_content with response_modalities=[TEXT, IMAGE]
         try:

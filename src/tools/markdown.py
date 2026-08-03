@@ -160,10 +160,19 @@ class MarkdownBuilder:
             words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
             return {w for w in words if w not in stop_words}
 
+        conclusion_titles = {
+            "final thoughts", "key takeaways", "summary", "conclusion",
+            "practical recommendations", "choosing the right approach",
+            "best practices recap", "what you should remember", "closing thoughts"
+        }
+
         # Pre-compute per-block keywords (headings + first 250 chars of body)
         block_keywords: dict[int, set[str]] = {}
         for block_idx, block in enumerate(sections_blocks):
             if not block.startswith("## "):
+                continue
+            first_line = block.split("\n", 1)[0].replace("##", "").strip().lower()
+            if any(ct in first_line for ct in conclusion_titles):
                 continue
             heading_titles = re.findall(r"#{2,3}\s+([^\n]+)", block)
             body_snippet = re.sub(r"#{2,3}[^\n]+\n", "", block, count=3)[:250]
@@ -174,6 +183,7 @@ class MarkdownBuilder:
             block_keywords[block_idx] = bkw
 
         h2_indices = sorted(block_keywords.keys())
+
 
         # Score each image against each block, then assign best unique match
         # (greedy by highest score, one image per block)
