@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from src.config.settings import IMAGES_DIR, OUTPUTS_DIR
+from src.config.settings import OUTPUTS_DIR
 from src.models.gateway import gateway
 from src.models.types import NodeType
 from src.schemas.models import (
@@ -30,8 +30,8 @@ class ImageGenerator:
     """Generate blog images using Node-Aware Gateway with automatic provider fallbacks."""
 
     def __init__(self) -> None:
-        self._output_dir = Path(IMAGES_DIR)
-        self._output_dir.mkdir(parents=True, exist_ok=True)
+        self._output_dir = OUTPUTS_DIR / "images"
+
 
     def generate_with_details(
         self,

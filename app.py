@@ -39,11 +39,11 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 LEGACY_OUTPUTS_DIR = BASE_DIR / "data" / "outputs"
-IMAGES_DIR = BASE_DIR / "data" / "images"
 
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 # ---------------------------------------------------------
@@ -110,10 +110,11 @@ def serve_image(filename: str):
                 if img_file.is_file():
                     return FileResponse(path=img_file)
 
-    # 3. Fallback to legacy global images directory
-    legacy_file = IMAGES_DIR / safe_filename
-    if legacy_file.is_file():
-        return FileResponse(path=legacy_file)
+    # 3. Fallback to global images directory in outputs
+    global_img = OUTPUTS_DIR / "images" / safe_filename
+    if global_img.is_file():
+        return FileResponse(path=global_img)
+
 
     raise HTTPException(status_code=404, detail="Image not found.")
 
