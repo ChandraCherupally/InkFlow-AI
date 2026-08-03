@@ -78,7 +78,7 @@ jobs:
       #    Never use pip.
       # ---------------------------------------------------------
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --group dev
 
       # ---------------------------------------------------------
       # 6. Run pytest
