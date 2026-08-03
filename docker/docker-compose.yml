@@ -1,0 +1,45 @@
+# =============================================================
+# InkFlow-AI — Docker Compose
+# =============================================================
+# Starts the InkFlow-AI FastAPI application in a single container.
+# No database, Redis, or additional services are required.
+#
+# Usage (run from project root):
+#   docker compose -f docker/docker-compose.yml up --build
+#   docker compose -f docker/docker-compose.yml up -d
+#   docker compose -f docker/docker-compose.yml down
+#
+# Or set COMPOSE_FILE in your shell:
+#   export COMPOSE_FILE=docker/docker-compose.yml
+#   docker compose up --build
+# =============================================================
+
+
+services:
+  inkflow-ai:
+    build:
+      # Build context is the project root so all source files
+      # (app.py, src/, static/, templates/, pyproject.toml, uv.lock)
+      # are available to the Dockerfile COPY instructions.
+      context: ..
+      # Path to Dockerfile is relative to the build context (project root).
+      dockerfile: docker/Dockerfile
+
+    # Map host port 8000 -> container port 8000
+    ports:
+      - "8000:8000"
+
+    # Load all API keys and configuration from the project-root .env file.
+    # Never hardcode credentials here.
+    env_file:
+      - ../.env
+
+    # Persist generated outputs (blogs, images, JSON metadata) on the
+    # host so they survive container recreation.
+    volumes:
+      - ../outputs:/app/outputs
+
+    # Restart automatically unless the container was explicitly stopped.
+    restart: unless-stopped
+
+    working_dir: /app
