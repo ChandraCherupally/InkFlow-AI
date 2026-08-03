@@ -33,24 +33,17 @@ class ImageGenerator:
         self._output_dir = Path(IMAGES_DIR)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate(self, image: ImageSpec, run_id: str | None = None) -> GeneratedImage:
+    def generate_with_details(
+        self,
+        image: ImageSpec,
+        run_id: str | None = None,
+    ) -> tuple[GeneratedImage, str, str, bool]:
         """
-        Generate a single image using the Gateway for NodeType.IMAGE_GENERATOR.
-
-        Parameters
-        ----------
-        image:
-            Image generation request spec.
-        run_id:
-            Optional workflow execution run directory identifier.
-
-        Returns
-        -------
-        GeneratedImage
+        Generate a single image and return metadata including the actual model and provider used.
         """
         logger.info("Generating image for placeholder: %s", image.placeholder)
 
-        image_bytes = gateway.image(
+        image_bytes, used_model, used_provider, is_fallback = gateway.image_with_details(
             node_type=NodeType.IMAGE_GENERATOR,
             prompt=image.prompt,
             size=image.size,
@@ -68,14 +61,22 @@ class ImageGenerator:
         filepath = target_dir / filename
         filepath.write_bytes(image_bytes)
 
-        logger.info("Saved image: %s", filepath)
+        logger.info("Saved image: %s (model=%s, fallback=%s)", filepath, used_model, is_fallback)
 
-        return GeneratedImage(
+        generated = GeneratedImage(
             filename=filename,
             path=str(filepath),
             alt=image.alt,
             caption=image.caption,
         )
+        return generated, used_model, used_provider, is_fallback
+
+    def generate(self, image: ImageSpec, run_id: str | None = None) -> GeneratedImage:
+        """
+        Generate a single image using the Gateway for NodeType.IMAGE_GENERATOR.
+        """
+        generated, _, _, _ = self.generate_with_details(image, run_id=run_id)
+        return generated
 
 
 image_generator = ImageGenerator()

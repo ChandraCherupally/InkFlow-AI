@@ -13,7 +13,66 @@ from datetime import datetime, timezone
 import logging
 from typing import Any
 
+from litellm import completion_cost, model_cost
+from litellm.types.utils import ModelResponse, Usage
+
 logger = logging.getLogger(__name__)
+
+
+def calculate_image_cost(
+    model_name: str,
+    size: str = "1024x1024",
+    quality: str = "standard",
+    n: int = 1,
+) -> float:
+    """
+    Calculate USD cost for image generation models using LiteLLM completion_cost
+    or model_cost dictionary lookup with fallback rate table.
+    """
+    if not model_name or "placeholder" in model_name.lower():
+        return 0.0
+
+    # 1. Try completion_cost for image_generation
+    try:
+        c = completion_cost(
+            model=model_name,
+            call_type="image_generation",
+            size=size,
+            quality=quality,
+            n=n,
+        )
+        if c is not None and c > 0:
+            return float(c)
+    except Exception:
+        pass
+
+    # 2. Check LiteLLM internal model_cost map lookup
+    candidates = [
+        model_name,
+        f"openai/{model_name}",
+        f"gemini/{model_name}",
+        f"vertex_ai/{model_name}",
+    ]
+    for key in candidates:
+        entry = model_cost.get(key)
+        if entry:
+            per_img = entry.get("input_cost_per_image") or entry.get("output_cost_per_image")
+            if per_img and float(per_img) > 0:
+                return float(per_img) * n
+
+    # 3. Known provider pricing fallbacks
+    FALLBACKS = {
+        "dall-e-3": 0.040,
+        "dall-e-2": 0.020,
+        "imagen-3": 0.030,
+        "gemini-3-pro-image": 0.030,
+        "gemini-3.1-flash-image": 0.020,
+    }
+    for k, rate in FALLBACKS.items():
+        if k in model_name.lower():
+            return rate * n
+
+    return 0.0
 
 
 class CostTracker:
@@ -86,6 +145,36 @@ class CostTracker:
         return deduped
 
     @staticmethod
+    def infer_provider(model_name: str, default_provider: str = "openai") -> str:
+        """
+        Infer standard provider identifier from model name string so provider and model
+        always match accurately when fallbacks occur.
+        """
+        if not model_name:
+            return default_provider
+        m = str(model_name).lower()
+        if "/" in m:
+            prefix = m.split("/")[0]
+            if prefix in ("vertex_ai", "gemini", "google"):
+                return "vertex_ai"
+            if prefix in ("openai", "azure"):
+                return "openai"
+            if prefix in ("anthropic", "claude"):
+                return "anthropic"
+            if prefix in ("tavily", "web_search"):
+                return "tavily"
+            if prefix in ("local", "placeholder"):
+                return "local"
+            return prefix
+        if "gemini" in m or "imagen" in m:
+            return "vertex_ai"
+        if "gpt" in m or "dall-e" in m:
+            return "openai"
+        if "claude" in m:
+            return "anthropic"
+        return default_provider
+
+    @staticmethod
     def extract_llm_metrics(
         response: Any,
         node_name: str,
@@ -95,16 +184,28 @@ class CostTracker:
         is_fallback: bool = False,
     ) -> dict[str, Any]:
         """
-        Extract token usage and cost metadata from an LLM response object.
+        Extract token usage and calculate exact cost using LiteLLM completion_cost.
+        Detects actual model used and fallback status from response metadata.
         """
         prompt_tokens = None
         completion_tokens = None
         total_tokens = None
-        cost = 0.0005  # Base estimate
+        actual_model = model
 
         res_obj = response
         if isinstance(response, dict) and "raw" in response:
             res_obj = response.get("raw")
+
+        # Extract actual responding model from response metadata
+        if hasattr(res_obj, "response_metadata") and res_obj.response_metadata:
+            rm = res_obj.response_metadata
+            resp_model = rm.get("model_name") or rm.get("model")
+            if resp_model and isinstance(resp_model, str):
+                actual_model = resp_model
+                if actual_model != model:
+                    is_fallback = True
+
+        actual_provider = CostTracker.infer_provider(actual_model, default_provider=provider)
 
         # 1. Try usage_metadata from LangChain BaseMessage / AIMessage
         if hasattr(res_obj, "usage_metadata") and res_obj.usage_metadata:
@@ -117,11 +218,14 @@ class CostTracker:
         if not total_tokens and hasattr(res_obj, "response_metadata") and res_obj.response_metadata:
             rm = res_obj.response_metadata
             token_usage = rm.get("token_usage") or rm.get("usage") or {}
-            prompt_tokens = prompt_tokens or token_usage.get("prompt_tokens") or token_usage.get("input_tokens")
-            completion_tokens = completion_tokens or token_usage.get("completion_tokens") or token_usage.get("output_tokens")
-            total_tokens = total_tokens or token_usage.get("total_tokens")
-            if "_response_cost" in rm and rm["_response_cost"] is not None:
-                cost = float(rm["_response_cost"])
+            if hasattr(token_usage, "prompt_tokens"):
+                prompt_tokens = prompt_tokens or getattr(token_usage, "prompt_tokens", None)
+                completion_tokens = completion_tokens or getattr(token_usage, "completion_tokens", None)
+                total_tokens = total_tokens or getattr(token_usage, "total_tokens", None)
+            elif isinstance(token_usage, dict):
+                prompt_tokens = prompt_tokens or token_usage.get("prompt_tokens") or token_usage.get("input_tokens")
+                completion_tokens = completion_tokens or token_usage.get("completion_tokens") or token_usage.get("output_tokens")
+                total_tokens = total_tokens or token_usage.get("total_tokens")
 
         # 3. Try direct usage attribute
         if not total_tokens and hasattr(res_obj, "usage") and res_obj.usage:
@@ -138,21 +242,72 @@ class CostTracker:
         if not total_tokens and (prompt_tokens is not None or completion_tokens is not None):
             total_tokens = (prompt_tokens or 0) + (completion_tokens or 0)
 
-        # Calculate lightweight estimated cost if total_tokens is known
-        if total_tokens and cost == 0.0005:
-            # Approx $0.00015 / 1K tokens for Flash tier
+        # Calculate exact USD cost using litellm completion_cost
+        cost = 0.0
+        if total_tokens or prompt_tokens or completion_tokens:
+            try:
+                res_wrapper = ModelResponse()
+                res_wrapper.model = actual_model
+                res_wrapper.usage = Usage(
+                    prompt_tokens=prompt_tokens or 0,
+                    completion_tokens=completion_tokens or 0,
+                    total_tokens=total_tokens or ((prompt_tokens or 0) + (completion_tokens or 0)),
+                )
+                calc_cost = completion_cost(completion_response=res_wrapper)
+                if calc_cost is not None and calc_cost > 0:
+                    cost = float(calc_cost)
+            except Exception as err:
+                logger.debug("completion_cost calculation failed for %s: %s", actual_model, err)
+
+        if cost == 0.0 and total_tokens:
             cost = round((total_tokens / 1000.0) * 0.00015, 6)
 
         return CostTracker.create_metric(
             node_name=node_name,
-            provider=provider,
-            model=model,
+            provider=actual_provider,
+            model=actual_model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             latency_ms=latency_ms,
             estimated_cost=cost,
             status="completed",
+            is_fallback=is_fallback,
+        )
+
+    @staticmethod
+    def extract_image_metrics(
+        node_name: str,
+        provider: str,
+        model: str,
+        latency_ms: float,
+        images_generated: int = 1,
+        resolution: str = "2560x1440",
+        is_fallback: bool = False,
+        status: str = "completed",
+    ) -> dict[str, Any]:
+        """
+        Extract metrics and exact USD cost for image generation calls.
+        """
+        actual_provider = CostTracker.infer_provider(model, default_provider=provider)
+        cost = calculate_image_cost(
+            model_name=model,
+            size=resolution,
+            n=images_generated,
+        ) if status == "completed" else 0.0
+
+        return CostTracker.create_metric(
+            node_name=node_name,
+            provider=actual_provider,
+            model=model,
+            prompt_tokens=None,
+            completion_tokens=None,
+            total_tokens=None,
+            latency_ms=latency_ms,
+            estimated_cost=cost,
+            status=status,
+            images_generated=images_generated,
+            resolution=resolution,
             is_fallback=is_fallback,
         )
 
@@ -239,3 +394,4 @@ class CostTracker:
 
 
 cost_tracker = CostTracker()
+

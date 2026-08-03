@@ -1532,3 +1532,15 @@ textarea::placeholder {
 .full-width-details-card .metrics-table td {
     padding: 8px 12px;
 }
+
+.fallback-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 4px;
+}

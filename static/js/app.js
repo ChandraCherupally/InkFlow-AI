@@ -940,12 +940,13 @@ function renderExecutionSummary(summary, metrics) {
             const costText = m.estimated_cost !== undefined && m.estimated_cost !== null ? `$${m.estimated_cost.toFixed(4)}` : '—';
             const latencyText = m.latency_ms !== undefined && m.latency_ms !== null ? `${m.latency_ms}ms` : '—';
             const statusText = escapeHtml(m.status || 'completed');
+            const fallbackBadge = m.is_fallback ? '<span class="fallback-badge">Fallback</span>' : '';
 
             return `
                 <tr>
                     <td><strong>${escapeHtml(m.node_name || '—')}</strong></td>
                     <td>${escapeHtml(m.provider || '—')}</td>
-                    <td>${escapeHtml(m.model || '—')}</td>
+                    <td>${escapeHtml(m.model || '—')}${fallbackBadge}</td>
                     <td>${promptTok}</td>
                     <td>${compTok}</td>
                     <td>${totTok}</td>

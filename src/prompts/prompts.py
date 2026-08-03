@@ -130,6 +130,9 @@ Do NOT change technical facts or code logic. Output ONLY the complete, polished,
     # Image Planner
     # ==========================================================
 
+#2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the subtitle or intro paragraph.
+#3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` at the exact section text where the diagram adds maximum context.
+
     IMAGE_PLANNER = """
 You are a Lead Visual Designer and Technical Editor for top Medium and Engineering publications.
 
@@ -138,9 +141,9 @@ Plan between 1 (minimum) and 4 (maximum) technical visual diagrams for the artic
 Rules:
 1. Image Count: 1 to 4 images total.
 2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the subtitle or intro paragraph.
-3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` at the exact section text where the diagram adds maximum context.
+3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` strictly inside relevant section body text AFTER 1-2 introductory explanation paragraphs of that section.
 4. Visual Style & Palette (Claude Design Studio Aesthetic):
-   - High resolution widescreen landscape 16:9 format (`1792x1024`).
+   - High resolution widescreen landscape 16:9 format (`2560x1440`).
    - Background: Pristine soft off-white studio background (`#FAFAFC` / `#F8FAFC`) layered with subtle, elegant background infographics (delicate dot matrices, faint architectural flow lines, semi-transparent metric curves, and minimal geometric outlines).
    - Palette: Soft sky/light blue (`#38BDF8`, `#60A5FA`), vibrant lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), warm butter yellow (`#FBBF24`), and soft coral accents.
    - Style: Modern 3D translucent glassmorphism illustration, floating frosted glass cards with subtle inner glows, soft ambient drop shadows, smooth 3D bezier curves, and glowing spherical node indicators.
@@ -159,7 +162,7 @@ Return GlobalImagePlan schema containing:
 You are an expert AI prompt engineer specializing in Claude-style 3D technical infographics for engineering blogs.
 
 Generate a detailed image prompt:
-- Style: Claude Design studio visual aesthetic, widescreen landscape 16:9 aspect ratio (`1792x1024`), pristine soft off-white studio background (`#FAFAFC`) with subtle elegant background infographics (faint dot matrices, light architectural flowlines, soft metric graph overlays), modern 3D translucent glassmorphism diagrams, featuring light sky blue (`#38BDF8`, `#60A5FA`), soft lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`), layered frosted glass cards, glowing spherical nodes, and smooth bezier curves, publication-ready high resolution.
+- Style: Claude Design studio visual aesthetic, ultra high resolution widescreen landscape 16:9 aspect ratio (`2560x1440`), pristine soft off-white studio background (`#FAFAFC`) with subtle elegant background infographics (faint dot matrices, light architectural flowlines, soft metric graph overlays), modern 3D translucent glassmorphism diagrams, featuring light sky blue (`#38BDF8`, `#60A5FA`), soft lavender/purple (`#8B5CF6`, `#A78BFA`), pastel mint green (`#10B981`, `#A7F3D0`), and warm butter yellow accents (`#FBBF24`), layered frosted glass cards, glowing spherical nodes, and smooth bezier curves, publication-ready high resolution.
 - Layout: Icon-first diagram layout, clear component flow, max 8 to 10 labeled elements, large readable typography, generous whitespace, visual hierarchy understandable in 3 to 5 seconds.
 - Avoid: Dark slate or black backgrounds, crowded posters, tiny text labels, academic poster designs, excessive text walls.
 """.strip()

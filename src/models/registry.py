@@ -55,21 +55,21 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
     NodeType.ROUTER: NodeModelConfig(
         node_type=NodeType.ROUTER,
         primary=ModelProfiles.GEMINI_2_5_FLASH,
-        fallbacks=[ModelProfiles.GEMINI_2_5_FLASH_LITE, ModelProfiles.GPT_5_MINI],
+        fallbacks=[ModelProfiles.GEMINI_2_5_FLASH_LITE,ModelProfiles.GEMINI_2_5_FLASH, ModelProfiles.GPT_5_MINI],
         required_capabilities={"supports_structured_output": True},
     ),
     # Research Node: Structured output + search support
     NodeType.RESEARCH: NodeModelConfig(
         node_type=NodeType.RESEARCH,
-        primary=ModelProfiles.GEMINI_2_5_FLASH,
-        fallbacks=[ModelProfiles.GPT_5_MINI],
+        primary=ModelProfiles.GEMINI_3_5_FLASH,
+        fallbacks=[ModelProfiles.GEMINI_2_5_FLASH,ModelProfiles.GPT_54_MINI],
         required_capabilities={"supports_structured_output": True},
     ),
     # Planner Node: Requires structured output + reasoning
     NodeType.PLANNER: NodeModelConfig(
         node_type=NodeType.PLANNER,
-        primary=ModelProfiles.GEMINI_3_5_FLASH,
-        fallbacks=[ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_5],
+        primary=ModelProfiles.GPT_54_MINI,
+        fallbacks=[ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_54_MINI,ModelProfiles.GEMINI_3_5_FLASH],
         required_capabilities={
             "supports_structured_output": True,
             "supports_reasoning": True,
@@ -79,14 +79,14 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
     NodeType.WRITER: NodeModelConfig(
         node_type=NodeType.WRITER,
         primary=ModelProfiles.GEMINI_3_5_FLASH,
-        fallbacks=[ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_5],
+        fallbacks=[ModelProfiles.GEMINI_3_5_FLASH,ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_54_MINI],
         required_capabilities={"supports_reasoning": True},
     ),
     # Editor Node: Requires reasoning
     NodeType.EDITOR: NodeModelConfig(
         node_type=NodeType.EDITOR,
         primary=ModelProfiles.GEMINI_2_5_PRO,
-        fallbacks=[ModelProfiles.GPT_5],
+        fallbacks=[ModelProfiles.GEMINI_2_5_PRO,ModelProfiles.GPT_54_MINI],
         required_capabilities={"supports_reasoning": True},
     ),
     # Markdown Formatter Node
@@ -100,7 +100,7 @@ NODE_MODEL_REGISTRY: dict[NodeType, NodeModelConfig] = {
     NodeType.IMAGE_PLANNER: NodeModelConfig(
         node_type=NodeType.IMAGE_PLANNER,
         primary=ModelProfiles.GEMINI_3_5_FLASH,
-        fallbacks=[ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_5],
+        fallbacks=[ModelProfiles.GEMINI_3_5_FLASH,ModelProfiles.GEMINI_2_5_PRO, ModelProfiles.GPT_54_MINI],
         required_capabilities={"supports_structured_output": True},
     ),
     # Image Generator Node: Requires image generation capability

@@ -40,17 +40,17 @@ def image_worker(state: dict) -> dict:
         spec = spec_data if isinstance(spec_data, ImageSpec) else ImageSpec(**spec_data)
         logger.info("Generating parallel image for placeholder: %s", spec.placeholder)
 
-        generated = image_generator.generate(spec, run_id=run_id)
+        generated, used_model, used_provider, is_fallback = image_generator.generate_with_details(spec, run_id=run_id)
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 
-        metric = cost_tracker.create_metric(
+        metric = cost_tracker.extract_image_metrics(
             node_name="image_generator",
-            provider=config.primary.provider,
-            model=config.primary.model,
+            provider=used_provider,
+            model=used_model,
             latency_ms=latency_ms,
             images_generated=1,
-            resolution=spec.size or "1792x1024",
-            estimated_cost=0.04,
+            resolution=spec.size or "2560x1440",
+            is_fallback=is_fallback,
             status="completed",
         )
 
@@ -61,12 +61,14 @@ def image_worker(state: dict) -> dict:
     except Exception as e:
         logger.warning("Parallel image worker failed for spec: %s", e)
         latency_ms = (time.perf_counter() - start_time) * 1000.0
-        metric = cost_tracker.create_metric(
+        metric = cost_tracker.extract_image_metrics(
             node_name="image_generator",
             provider=config.primary.provider,
             model=config.primary.model,
             latency_ms=latency_ms,
             images_generated=0,
+            resolution="2560x1440",
+            is_fallback=False,
             status="failed",
         )
         return {

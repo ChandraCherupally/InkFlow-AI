@@ -87,59 +87,138 @@ class LLMGateway:
         self._cache[node_type] = model_chain
         return model_chain
 
-    def image(
+    def image_with_details(
         self,
         node_type: NodeType = NodeType.IMAGE_GENERATOR,
         prompt: str = "",
-        size: str = "1024x1024",
+        size: str = "2560x1440",
         quality: str = "medium",
-    ) -> bytes:
+    ) -> tuple[bytes, str, str, bool]:
         """
-        Generate an image for the specified NodeType trying primary model first, then fallbacks.
-
-        Parameters
-        ----------
-        node_type:
-            The image workflow node requesting generation.
-        prompt:
-            Image description prompt.
-        size:
-            Image resolution spec.
-        quality:
-            Quality mode.
+        Generate an image trying primary model first, then fallbacks.
 
         Returns
         -------
-        bytes
-            Generated PNG image bytes.
+        tuple[bytes, str, str, bool]
+            (image_bytes, used_model, used_provider, is_fallback)
         """
         config = get_node_config(node_type)
         chain = [config.primary] + config.fallbacks
 
-        for profile in chain:
+        for idx, profile in enumerate(chain):
             try:
-                logger.info("Attempting image generation with model: %s", profile.model)
-                image_bytes = self._call_genai_sdk(profile.model, prompt=prompt)
+                logger.info("Attempting image generation with model: %s (provider=%s)", profile.model, profile.provider)
+                if (
+                    profile.provider == "openai"
+                    or "dall-e" in profile.model.lower()
+                    or profile.model.startswith("openai/")
+                ):
+                    image_bytes = self._call_openai_image(profile.model, prompt=prompt, size=size, quality=quality)
+                else:
+                    image_bytes = self._call_genai_sdk(profile.model, prompt=prompt)
+
                 if image_bytes:
                     logger.info("Successfully generated image with model: %s", profile.model)
-                    return image_bytes
+                    is_fallback = (idx > 0) or (profile.model != config.primary.model)
+                    return image_bytes, profile.model, profile.provider, is_fallback
             except Exception as e:
                 logger.warning("Image model %s failed: %s", profile.model, e)
                 continue
 
         logger.warning(
-            "All Vertex AI image models failed or were restricted. Generating local technical illustration visual..."
+            "All image models failed or were restricted. Generating local technical illustration visual..."
         )
-        return self._create_placeholder_image(prompt, size)
+        img_bytes = self._create_placeholder_image(prompt, size)
+        return img_bytes, "local/placeholder-illustrator", "local", True
+
+    def image(
+        self,
+        node_type: NodeType = NodeType.IMAGE_GENERATOR,
+        prompt: str = "",
+        size: str = "2560x1440",
+        quality: str = "medium",
+    ) -> bytes:
+        """
+        Generate an image for the specified NodeType trying primary model first, then fallbacks.
+        Returns generated PNG image bytes.
+        """
+        image_bytes, _, _, _ = self.image_with_details(
+            node_type=node_type,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+        )
+        return image_bytes
 
     def generate(
         self,
         prompt: str,
-        size: str = "1024x1024",
+        size: str = "2560x1440",
         quality: str = "medium",
     ) -> bytes:
         """Backward compatibility alias for image generation."""
         return self.image(node_type=NodeType.IMAGE_GENERATOR, prompt=prompt, size=size, quality=quality)
+
+    def _call_openai_image(
+        self,
+        model_name: str,
+        prompt: str,
+        size: str = "2560x1440",
+        quality: str = "medium",
+    ) -> bytes:
+        """
+        Generate image using OpenAI image models via LiteLLM or direct OpenAI API client.
+        Automatically tries alternative model aliases (e.g. gpt-image-1) if dall-e-3 returns 400 invalid_value.
+        """
+        import base64
+        import requests
+        from litellm import image_generation
+
+        clean_model = model_name.replace("openai/", "")
+        valid_sizes = {"2560x1440", "1792x1024", "1024x1024", "1024x1792", "1792x1024"}
+        img_size = size if size in valid_sizes else "2560x1440"
+
+        candidate_models = [clean_model]
+        if clean_model in ("dall-e-3", "dall-e-2"):
+            candidate_models.extend(["gpt-image-1", "gpt-image-1-mini"])
+
+        api_key = os.getenv("OPENAI_API_KEY")
+
+        for m_name in candidate_models:
+            # 1. Primary method: litellm.image_generation
+            try:
+                res = image_generation(
+                    model=m_name,
+                    prompt=prompt,
+                    size=img_size,
+                    n=1,
+                    api_key=api_key,
+                )
+                if hasattr(res, "data") and res.data:
+                    item = res.data[0]
+                    if hasattr(item, "b64_json") and item.b64_json:
+                        return base64.b64decode(item.b64_json)
+                    elif hasattr(item, "url") and item.url:
+                        return requests.get(item.url, timeout=30).content
+            except Exception as err:
+                logger.debug("litellm image_generation failed for %s: %s", m_name, err)
+
+            # 2. Fallback method: direct OpenAI client
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                res = client.images.generate(
+                    model=m_name,
+                    prompt=prompt,
+                    size=img_size,
+                    n=1,
+                )
+                if res.data and res.data[0].url:
+                    return requests.get(res.data[0].url, timeout=30).content
+            except Exception as err:
+                logger.debug("openai client images.generate failed for %s: %s", m_name, err)
+
+        raise ValueError(f"Could not generate image using OpenAI model '{model_name}'.")
 
     def _call_genai_sdk(
         self,

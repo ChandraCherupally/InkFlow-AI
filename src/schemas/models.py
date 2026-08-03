@@ -84,7 +84,7 @@ class ImageSpec(BaseModel):
     alt: str = Field(description="Short accessibility alt text.")
     caption: str = Field(description="Figure caption title.")
     prompt: str = Field(description="Detailed image generation prompt.")
-    size: str = Field(default="1792x1024", description="Image dimensions.")
+    size: str = Field(default="2560x1440", description="Image dimensions.")
     quality: str = Field(default="medium", description="Image quality.")
 
 

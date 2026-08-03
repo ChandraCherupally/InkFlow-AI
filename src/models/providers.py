@@ -84,7 +84,7 @@ class ModelProfiles:
     # GPT-5 Mini / GPT-4o Mini (Fallback for lightweight tasks)
     GPT_5_MINI = ModelProfile(
         provider=Providers.OPENAI,
-        model="openai/gpt-4o-mini",
+        model="openai/gpt-5-mini",
         supports_structured_output=True,
         supports_reasoning=False,
         supports_streaming=True,
@@ -93,9 +93,9 @@ class ModelProfiles:
     )
 
     # GPT-5 / GPT-4o (Fallback for complex reasoning/writing)
-    GPT_5 = ModelProfile(
+    GPT_54_MINI = ModelProfile(
         provider=Providers.OPENAI,
-        model="openai/gpt-4o",
+        model="openai/gpt-5.4-mini",
         supports_structured_output=True,
         supports_reasoning=True,
         supports_streaming=True,
@@ -108,6 +108,15 @@ class ModelProfiles:
     # ==========================================================
 
     # Primary: Gemini Flash Image (Google GenAI Enterprise SDK)imagen-3.0-generate-002"
+    GEMINI_25_FLASH_IMAGE = ModelProfile(
+        provider=Providers.VERTEX_AI,
+        model="gemini-2.5-flash-image",
+        supports_structured_output=False,
+        supports_reasoning=False,
+        supports_streaming=False,
+        supports_images=True,
+    )
+    
     GEMINI_FLASH_IMAGE = ModelProfile(
         provider=Providers.VERTEX_AI,
         model="gemini-3-pro-image",

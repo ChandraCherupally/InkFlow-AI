@@ -52,21 +52,70 @@ class MarkdownBuilder:
             if hasattr(img, "filename") and img.filename:
                 image_map[img.filename] = img
 
-        # ALWAYS prioritize the full, complete article text from sections (state.blog_markdown)
+        # --------------------------------------------------
+        # Clean & Normalize Subtitle: Ensure EXACTLY ONE simple subtitle paragraph
+        # --------------------------------------------------
         full_article = "\n\n".join(sections) if sections else ""
         base_text = full_article if full_article.strip() else (markdown_with_placeholders if markdown_with_placeholders else "")
 
-        subtitle_text = getattr(plan, "subtitle", "") or ""
-        subtitle_block = f"*{subtitle_text.strip()}*\n\n" if subtitle_text.strip() and subtitle_text.strip() not in base_text else ""
-
         if not base_text and plan and plan.blog_title:
-            base_text = f"# {plan.blog_title}\n\n" + subtitle_block
-        elif base_text and plan and plan.blog_title and not base_text.startswith("#"):
-            base_text = f"# {plan.blog_title}\n\n" + subtitle_block + base_text
-        elif base_text and base_text.startswith("#") and subtitle_block:
-            first_line_end = base_text.find("\n")
-            if first_line_end != -1 and subtitle_text.strip() not in base_text:
-                base_text = base_text[:first_line_end].strip() + "\n\n" + subtitle_block + base_text[first_line_end:].lstrip()
+            base_text = f"# {plan.blog_title}\n\n"
+
+        # Normalize H1 title & subtitle block
+        lines = base_text.split("\n")
+        title_line = f"# {plan.blog_title}" if plan and plan.blog_title else (lines[0] if lines and lines[0].startswith("#") else "# Blog Title")
+        
+        # Extract existing subtitle if present
+        content_start_idx = 0
+        subtitle_line = ""
+        
+        for idx, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("# ") and not title_line:
+                title_line = stripped
+                continue
+            if stripped.startswith("*") and stripped.endswith("*") and len(stripped) > 2:
+                if not subtitle_line:
+                    subtitle_line = stripped
+                content_start_idx = idx + 1
+            elif stripped:
+                if not subtitle_line and plan and plan.subtitle:
+                    subtitle_line = f"*{plan.subtitle.strip()}*"
+                if idx > content_start_idx and not subtitle_line:
+                    content_start_idx = idx
+                break
+
+        if not subtitle_line and plan and plan.subtitle:
+            subtitle_line = f"*{plan.subtitle.strip()}*"
+
+        # Filter out any lingering duplicate title/subtitle lines from content
+        body_lines = []
+        in_body_code_block = False
+        for line in lines[content_start_idx:]:
+            s = line.strip()
+            if s.startswith("```"):
+                in_body_code_block = not in_body_code_block
+                body_lines.append(line)
+                continue
+
+            if not in_body_code_block:
+                if s.startswith("# ") and s.lower() == title_line.lower():
+                    continue
+                if s.startswith("# ") and s.lower() != title_line.lower():
+                    # Convert rogue single-hash H1 section titles inside body to H2 section titles
+                    body_lines.append(f"## {s[2:]}")
+                    continue
+                if s.startswith("*") and s.endswith("*") and s.lower() == subtitle_line.lower():
+                    continue
+                # Convert italicized subtitle lines directly beneath H2 headings into normal body text
+                if s.startswith("*") and s.endswith("*") and len(body_lines) > 0 and body_lines[-1].startswith("## "):
+                    body_lines.append(s[1:-1].strip())
+                    continue
+
+            body_lines.append(line)
+
+        clean_body = "\n".join(body_lines).strip()
+        base_text = f"{title_line}\n\n{subtitle_line}\n\n{clean_body}"
 
         # --------------------------------------------------
         # Method 1: Replace [[IMAGE_X]] placeholders inline
@@ -80,11 +129,9 @@ class MarkdownBuilder:
                 image_url = f"images/{img.filename}"
                 inline_md = f"\n\n![{img.alt}]({image_url})\n*{img.caption}*\n\n"
 
-                replaced = False
                 for pat in placeholder_patterns:
                     if pat in final_md:
                         final_md = final_md.replace(pat, inline_md, 1)
-                        replaced = True
                         break
 
             # Strip any remaining unreplaced image placeholders cleanly
@@ -92,55 +139,115 @@ class MarkdownBuilder:
             return final_md.strip()
 
         # --------------------------------------------------
-        # Method 2: Fallback inline placement across sections
+        # Method 2: Semantic & Even Section Placement across H2/H3 Sections
         # --------------------------------------------------
         if not images:
             return base_text.strip()
 
-        lines = base_text.split("\n")
-        output_lines: list[str] = []
-        img_idx = 0
+        # Split base_text into header/intro block and H2 sections
+        sections_blocks = re.split(r"\n(?=## )", base_text)
+        output_blocks = []
 
-        # Insert Image 1 (Hero Visual) after title or first paragraph
-        hero_inserted = False
+        stop_words = {'with', 'from', 'that', 'this', 'have', 'your', 'using', 'over', 'into', 'than', 'then', 'they', 'them', 'their', 'which', 'where', 'when', 'what', 'how', 'show', 'showing', 'diagram', 'visual', 'figure', 'image', 'architecture', 'system', 'flowchart', 'comparison', 'step', 'versus'}
 
-        for line in lines:
-            output_lines.append(line)
+        def get_kw(text: str) -> set[str]:
+            words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+            return {w for w in words if w not in stop_words}
 
-            # Insert Hero image right after the first level 2 heading or intro paragraph
-            if not hero_inserted and img_idx < len(images):
-                if line.startswith("## ") or (len(output_lines) > 5 and line == ""):
-                    img = images[img_idx]
-                    image_url = f"images/{img.filename}"
-                    output_lines.append("")
-                    output_lines.append(f"![{img.alt}]({image_url})")
-                    output_lines.append(f"*{img.caption}*")
-                    output_lines.append("")
-                    img_idx += 1
-                    hero_inserted = True
+        # Pre-calculate semantic matching between images and section blocks
+        block_image_assignment: dict[int, list[GeneratedImage]] = {}
+        unassigned_images = list(images)
+
+        for block_idx, block in enumerate(sections_blocks):
+            if not block.startswith("## ") or not unassigned_images:
+                continue
+
+            # Extract headings inside this block
+            heading_titles = re.findall(r"#{2,3}\s+([^\n]+)", block)
+            block_kw = set()
+            for h in heading_titles:
+                block_kw |= get_kw(h)
+
+            # Match unassigned images
+            matched_for_block = []
+            for img in list(unassigned_images):
+                img_kw = get_kw(img.caption or "") | get_kw(img.alt or "")
+                overlap = len(img_kw & block_kw)
+                if overlap >= 2:
+                    matched_for_block.append(img)
+                    unassigned_images.remove(img)
+
+            if matched_for_block:
+                block_image_assignment[block_idx] = matched_for_block
+
+        # Distribute any remaining unassigned images across available H2 section blocks
+        h2_indices = [idx for idx, b in enumerate(sections_blocks) if b.startswith("## ")]
+        if unassigned_images and h2_indices:
+            step = len(h2_indices) / len(unassigned_images)
+            for i, img in enumerate(unassigned_images):
+                target_h2_idx = h2_indices[min(int(round(i * step)), len(h2_indices) - 1)]
+                block_image_assignment.setdefault(target_h2_idx, []).append(img)
+
+        # Build output blocks by placing assigned images into their corresponding section blocks
+        for block_idx, block in enumerate(sections_blocks):
+            if block_idx not in block_image_assignment:
+                output_blocks.append(block)
+                continue
+
+            block_images = block_image_assignment[block_idx]
+            block_lines = block.split("\n")
+            in_code_block = False
+            new_lines = []
+            img_ptr = 0
+
+            paragraph_count = 0
+            for line in block_lines:
+                stripped = line.strip()
+
+                if stripped.startswith("```"):
+                    in_code_block = not in_code_block
+                    new_lines.append(line)
                     continue
 
-            # Insert subsequent images beneath next ## H2 headings
-            if hero_inserted and img_idx < len(images) and line.startswith("## "):
-                img = images[img_idx]
+                new_lines.append(line)
+
+                if in_code_block:
+                    continue
+
+                # Reset paragraph count if we hit an H3 sub-heading
+                if stripped.startswith("### "):
+                    paragraph_count = 0
+                    continue
+
+                if (
+                    stripped
+                    and not stripped.startswith("#")
+                    and not stripped.startswith(">")
+                    and not stripped.startswith("- ")
+                    and not stripped.startswith("* ")
+                ):
+                    paragraph_count += 1
+
+                # Insert image after 1-2 paragraphs inside the section / sub-section
+                if img_ptr < len(block_images) and paragraph_count >= 1:
+                    img = block_images[img_ptr]
+                    image_url = f"images/{img.filename}"
+                    image_block = f"\n\n![{img.alt}]({image_url})\n*{img.caption}*\n"
+                    new_lines.append(image_block)
+                    img_ptr += 1
+                    paragraph_count = 0
+
+            # Catch any unplaced images for this block
+            while img_ptr < len(block_images):
+                img = block_images[img_ptr]
                 image_url = f"images/{img.filename}"
-                output_lines.append("")
-                output_lines.append(f"![{img.alt}]({image_url})")
-                output_lines.append(f"*{img.caption}*")
-                output_lines.append("")
-                img_idx += 1
+                image_block = f"\n\n![{img.alt}]({image_url})\n*{img.caption}*\n"
+                new_lines.append(image_block)
+                img_ptr += 1
 
-        # Append remaining unused images inline cleanly
-        while img_idx < len(images):
-            img = images[img_idx]
-            image_url = f"images/{img.filename}"
-            output_lines.append("")
-            output_lines.append(f"![{img.alt}]({image_url})")
-            output_lines.append(f"*{img.caption}*")
-            output_lines.append("")
-            img_idx += 1
+            output_blocks.append("\n".join(new_lines))
 
-        return "\n".join(output_lines).strip()
+        return "\n\n".join(output_blocks).strip()
 
 
 markdown_builder = MarkdownBuilder()
