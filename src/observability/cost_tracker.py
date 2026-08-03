@@ -294,7 +294,7 @@ class CostTracker:
                 res_wrapper.usage = Usage(
                     prompt_tokens=prompt_tokens or 0,
                     completion_tokens=completion_tokens or 0,
-                    total_tokens=total_tokens or ((prompt_tokens or 0) + (completion_tokens or 0)),
+                    total_tokens=total_tokens or 0,
                 )
                 calc_cost = completion_cost(completion_response=res_wrapper)
                 if calc_cost is not None and calc_cost > 0:
@@ -386,35 +386,43 @@ class CostTracker:
                 "failed_nodes": 0,
             }
 
-        total_cost = sum(m.get("estimated_cost") or 0.0 for m in metrics)
-        total_tokens = sum(m.get("total_tokens") or 0 for m in metrics if m.get("total_tokens"))
-        latencies = [m.get("latency_ms") or 0.0 for m in metrics]
-        avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
-
-        # Most expensive node calculation
+        total_cost = 0.0
+        total_tokens = 0
+        latency_sum = 0.0
         node_costs: dict[str, float] = {}
-        for m in metrics:
-            n = m.get("node_name", "unknown")
-            node_costs[n] = node_costs.get(n, 0.0) + (m.get("estimated_cost") or 0.0)
-        most_expensive_node = max(node_costs, key=lambda k: node_costs[k]) if node_costs else "N/A"
-
-        # Most expensive model calculation
         model_costs: dict[str, float] = {}
+        images_generated = 0
+        unique_models: set[str] = set()
+        fallback_count = 0
+        successful_nodes = 0
+        failed_nodes = 0
+
         for m in metrics:
+            cost = m.get("estimated_cost") or 0.0
+            total_cost += cost
+            total_tokens += m.get("total_tokens") or 0
+            latency_sum += m.get("latency_ms") or 0.0
+            images_generated += m.get("images_generated", 0)
+
+            node = m.get("node_name", "unknown")
+            node_costs[node] = node_costs.get(node, 0.0) + cost
+
             mod = m.get("model", "unknown")
-            model_costs[mod] = model_costs.get(mod, 0.0) + (m.get("estimated_cost") or 0.0)
+            model_costs[mod] = model_costs.get(mod, 0.0) + cost
+            if mod:
+                unique_models.add(mod)
+
+            if m.get("is_fallback"):
+                fallback_count += 1
+            if m.get("status") == "completed":
+                successful_nodes += 1
+            elif m.get("status") == "failed":
+                failed_nodes += 1
+
+        avg_latency = latency_sum / len(metrics)
+        most_expensive_node = max(node_costs, key=lambda k: node_costs[k]) if node_costs else "N/A"
         most_expensive_model = max(model_costs, key=lambda k: model_costs[k]) if model_costs else "N/A"
-
-        # Slowest node calculation
-        slowest_metric = max(metrics, key=lambda x: x.get("latency_ms", 0.0)) if metrics else {}
-        slowest_node = slowest_metric.get("node_name", "N/A")
-
-        # Key counts
-        images_generated = sum(m.get("images_generated", 0) for m in metrics)
-        unique_models = len({m.get("model") for m in metrics if m.get("model")})
-        fallback_count = sum(1 for m in metrics if m.get("is_fallback"))
-        successful_nodes = sum(1 for m in metrics if m.get("status") == "completed")
-        failed_nodes = sum(1 for m in metrics if m.get("status") == "failed")
+        slowest_node = max(metrics, key=lambda x: x.get("latency_ms", 0.0)).get("node_name", "N/A")
 
         return {
             "workflow_status": "failed" if failed_nodes > 0 else "completed",
@@ -427,13 +435,14 @@ class CostTracker:
             "sections_generated": sections_count,
             "images_generated": images_generated,
             "sources_retrieved": sources_count,
-            "unique_models_used": unique_models,
+            "unique_models_used": len(unique_models),
             "fallback_count": fallback_count,
             "guardrail_violations": guardrail_violations,
             "execution_duration": f"{duration_seconds:.1f}s",
             "successful_nodes": successful_nodes,
             "failed_nodes": failed_nodes,
         }
+
 
 
 cost_tracker = CostTracker()

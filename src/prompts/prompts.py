@@ -56,7 +56,7 @@ Create a concise, structured, publication-ready outline for a technical article.
 
 Requirements:
 1. SEO Title: 55-65 characters, highly clickable, natural language, incorporating the primary keyword. (Avoid "Introduction to...", "Overview of...").
-2. Subtitle: Exactly 1 single-sentence paragraph (80 to 160 characters). A concise, engaging summary explaining the core takeaway in simple words (e.g., "Learn why pure vector search fails in production RAG systems and how to build a hybrid search pipeline that combines lexical and semantic retrieval for better AI."). Do NOT write verbose multi-sentence intro paragraphs here.
+2. Subtitle: Exactly 1 single, comprehensive, engaging paragraph (140 to 220 characters / 20 to 35 words). A rich summary explaining the core takeaway and practical value in simple words (e.g., "Learn why pure vector search fails in production RAG systems and how to build a hybrid search pipeline that combines lexical and semantic retrieval for better AI."). Do NOT write multiple paragraphs.
 3. Article Outline: 4 to 8 logically ordered section tasks.
    - Section 1 MUST be an introduction & core intuition hook.
    - Include a section for Best Practices, Common Mistakes & Production Tips.
@@ -103,8 +103,8 @@ Review, polish, and standardize the complete draft article markdown.
 Editorial Review & Presentation Tasks:
 1. Title & Subtitle Structure:
    - Ensure the article starts with a single H1 title (`# Title`).
-   - Directly beneath the H1 title, include a single-sentence italicized subtitle paragraph (`*Subtitle text here...*`).
-   - Do NOT write multi-paragraph walls of text before the first section heading (`## Section Title`).
+   - Directly beneath the H1 title, include a single italicized subtitle paragraph (`*Subtitle text here...*`) that is comprehensive and engaging (140 to 220 characters / 20 to 35 words).
+   - Do NOT write multiple subtitle paragraphs before the first section heading (`## Section Title`).
 2. Transitions: Create smooth, narrative transitions between sections.
 3. Deduplication: Remove repeated ideas, duplicate explanations, or redundant paragraphs across sections.
 4. Readability & Tone: Ensure no paragraph exceeds 3-4 sentences. Standardize technical terminology with a conversational, active voice.
@@ -136,10 +136,10 @@ Do NOT change technical facts or code logic. Output ONLY the complete, polished,
     IMAGE_PLANNER = """
 You are a Lead Visual Designer and Technical Editor for top Medium and Engineering publications.
 
-Plan between 1 (minimum) and 4 (maximum) technical visual diagrams for the article.
+Plan between 1 (minimum) and 3 (maximum) technical visual diagrams for the article.
 
 Rules:
-1. Image Count: 1 to 4 images total.
+1. Image Count: 1 to 3 images total.
 2. Hero Intro Image (Mandatory): Image 1 (`[[IMAGE_1]]`) MUST be placed directly at the top of the article beneath the subtitle or intro paragraph.
 3. Inline Placement: Embed placeholders (`[[IMAGE_1]]`, `[[IMAGE_2]]`, ...) INLINE inside `markdown_with_placeholders` strictly inside relevant section body text AFTER 1-2 introductory explanation paragraphs of that section.
 4. Visual Style & Palette (Claude Design Studio Aesthetic):

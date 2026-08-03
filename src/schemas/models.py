@@ -27,8 +27,9 @@ class Plan(BaseModel):
     blog_title: str = Field(description="Overall click-worthy SEO title (55-65 characters).")
     subtitle: str = Field(
         default="",
-        description="Single concise 1-sentence subtitle paragraph (80-160 characters) explaining the topic in simple words.",
+        description="Single rich, comprehensive subtitle paragraph (160-260 characters / 25-40 words) explaining the core takeaway in simple words.",
     )
+
     audience: str = Field(description="Target reader persona.")
     tone: str = Field(description="Writing style and tone.")
     blog_kind: str = Field(description="Category of article, e.g. tutorial, comparison.")

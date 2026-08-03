@@ -78,7 +78,12 @@ def image_planner(state: BlogState) -> BlogState:
         latency_ms=latency_ms,
     )
 
+    if image_plan.images and len(image_plan.images) > 3:
+        logger.info("Capping planned images from %d down to maximum 3.", len(image_plan.images))
+        image_plan.images = image_plan.images[:3]
+
     logger.info("Image planner returned %d image(s).", len(image_plan.images))
+
 
     return {
         "image_plan": image_plan,
