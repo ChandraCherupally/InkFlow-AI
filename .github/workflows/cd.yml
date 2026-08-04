@@ -16,7 +16,7 @@
 #   3.  Set up Docker Buildx
 #   4.  Build & push image           (latest + SHA tags)
 #   5.  Prepare deployment directory on the server
-#   6.  Write production docker-compose.yml  (image-pull, no build)
+#   6.  Write production docker-compose.yml
 #   7.  Generate runtime .env from GitHub Secrets
 #   8.  Pull latest image from Docker Hub
 #   9.  Restart application
@@ -61,6 +61,42 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
 
     steps:
+      # ---------------------------------------------------------
+      # 1. Checkout repository
+      # ---------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------
+      # 2. Log in to Docker Hub
+      # ---------------------------------------------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ---------------------------------------------------------
+      # 3. Set up Docker Buildx
+      # ---------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ---------------------------------------------------------
+      # 4. Build and push Docker image
+      # ---------------------------------------------------------
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.IMAGE_NAME }}:latest
+            ${{ secrets.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       # ---------------------------------------------------------
       # 5. Prepare deployment directory
       #    Creates ~/inkflow-ai if it does not already exist.
