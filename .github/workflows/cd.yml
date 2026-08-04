@@ -16,12 +16,20 @@
 #   3.  Set up Docker Buildx
 #   4.  Build & push image           (latest + SHA tags)
 #   5.  Prepare deployment directory on the server
-#   6.  Write production docker-compose.yml
-#   7.  Generate runtime .env from GitHub Secrets
-#   8.  Pull latest image from Docker Hub
-#   9.  Restart application
-#   10. Clean old Docker images
-#   11. Health check
+#   6.  Create Vertex AI service account credential file (chmod 600)
+#   7.  Write production docker-compose.yml  (image-pull, read-only key mount)
+#   8.  Generate runtime .env from GitHub Secrets
+#   9.  Pull latest image from Docker Hub
+#   10. Restart application
+#   11. Clean old Docker images
+#   12. Health check & credential validation
+#
+# Secret Management & Twelve-Factor App Principles:
+#   - Credentials (VERTEX_SERVICE_ACCOUNT_JSON) are stored strictly in GitHub Secrets.
+#   - The credential file (vertex-key.json) is generated at deployment runtime on the EC2 host.
+#   - It is mounted into the container as read-only (:ro) at /app/vertex-key.json.
+#   - It is never committed to Git, baked into Docker images, or uploaded to Docker Hub.
+#   - Keeps the Docker image completely immutable and reusable across environments.
 #
 # Runner: self-hosted GitHub Runner on the AWS EC2 instance.
 # All commands execute directly on the server — no SSH required.
@@ -109,12 +117,34 @@ jobs:
           mkdir -p ~/inkflow-ai/outputs
 
       # ---------------------------------------------------------
-      # 6. Write production docker-compose.yml
+      # 6. Create Vertex AI service account credential file
+      #    Recreates ~/inkflow-ai/vertex-key.json from the
+      #    VERTEX_SERVICE_ACCOUNT_JSON GitHub Secret.
+      #
+      #    Why this design (Twelve-Factor App & Security):
+      #      • Recreated only at runtime on the deployment server host.
+      #      • File permissions restricted to 600 (read/write owner only).
+      #      • Never printed or echoed to workflow logs.
+      #      • Excluded from Git repository and Docker images to keep
+      #        the image immutable and environment-agnostic.
+      # ---------------------------------------------------------
+      - name: Create Vertex AI service account credential file
+        env:
+          VERTEX_KEY_JSON: ${{ secrets.VERTEX_SERVICE_ACCOUNT_JSON }}
+        run: |
+          echo "Generating Vertex AI credential file..."
+          printf '%s\n' "$VERTEX_KEY_JSON" > ~/inkflow-ai/vertex-key.json
+          chmod 600 ~/inkflow-ai/vertex-key.json
+
+      # ---------------------------------------------------------
+      # 7. Write production docker-compose.yml
       #    This file is written fresh on every deploy so it always
       #    reflects the current repo configuration.
       #
-      #    Key difference from the dev compose file:
+      #    Key features for production:
       #      • Uses image: (pulls from Docker Hub) instead of build:
+      #      • Mounts vertex-key.json as read-only (:ro) to prevent
+      #        accidental modification or tampering inside container
       #      • env_file and volumes are relative to ~/inkflow-ai/
       #
       #    Heredoc uses single-quoted 'COMPOSE' so that the literal
@@ -139,9 +169,10 @@ jobs:
               env_file:
                 - .env
 
-              # Persist generated outputs across container recreations.
+              # Persist generated outputs and mount Google Cloud service key read-only.
               volumes:
                 - ./outputs:/app/outputs
+                - ./vertex-key.json:/app/vertex-key.json:ro
 
               restart: unless-stopped
 
@@ -149,10 +180,13 @@ jobs:
           COMPOSE
 
       # ---------------------------------------------------------
-      # 7. Generate runtime .env from GitHub Secrets
+      # 8. Generate runtime .env from GitHub Secrets
       #    The file is written to ~/inkflow-ai/.env on the server.
       #    It is never committed and never echoed into logs.
       #    GitHub Actions automatically masks secret values in output.
+      #
+      #    GOOGLE_APPLICATION_CREDENTIALS points to the in-container
+      #    mount path (/app/vertex-key.json).
       #
       #    Heredoc uses single-quoted 'ENV' so the shell does not
       #    re-expand values that may contain $ characters.
@@ -169,6 +203,7 @@ jobs:
           # Google Cloud / Vertex AI
           PROJECT_ID=${{ secrets.PROJECT_ID }}
           REGION=${{ secrets.REGION }}
+          GOOGLE_APPLICATION_CREDENTIALS=/app/vertex-key.json
 
           # LangSmith Observability
           LANGSMITH_TRACING=${{ secrets.LANGSMITH_TRACING }}
@@ -181,7 +216,7 @@ jobs:
           ENV
 
       # ---------------------------------------------------------
-      # 8. Pull latest image from Docker Hub
+      # 9. Pull latest image from Docker Hub
       #    Pulls the image declared in docker-compose.yml.
       #    No local rebuild — deployment always uses the image
       #    that was built and pushed in step 4.
@@ -193,7 +228,7 @@ jobs:
           docker compose pull
 
       # ---------------------------------------------------------
-      # 9. Restart application
+      # 10. Restart application
       #    --remove-orphans cleans up containers for services
       #    that no longer exist in the compose file.
       # ---------------------------------------------------------
@@ -204,7 +239,7 @@ jobs:
           docker compose up -d --remove-orphans
 
       # ---------------------------------------------------------
-      # 10. Clean old Docker images
+      # 11. Clean old Docker images
       #     Removes dangling images to reclaim disk space.
       #     Running containers and named volumes are not affected.
       # ---------------------------------------------------------
@@ -214,14 +249,26 @@ jobs:
           docker image prune -f
 
       # ---------------------------------------------------------
-      # 11. Health check
-      #     Waits 15 seconds for the application to initialise,
-      #     then probes the /api/health endpoint.
-      #     Fails the workflow with a clear message if unhealthy.
+      # 12. Health check & credential validation
+      #     Validates host credential file existence and permissions (600),
+      #     waits 15 seconds for the application to initialise, then
+      #     probes the /api/health endpoint.
       # ---------------------------------------------------------
-      - name: Health check
+      - name: Health check and credential validation
         run: |
-          echo "Running health check..."
+          echo "Validating host credential file..."
+          if [ ! -f ~/inkflow-ai/vertex-key.json ]; then
+            echo "❌ Host credential file ~/inkflow-ai/vertex-key.json does not exist!"
+            exit 1
+          fi
+          PERMS=$(stat -c %a ~/inkflow-ai/vertex-key.json 2>/dev/null || stat -f %Lp ~/inkflow-ai/vertex-key.json)
+          if [ "$PERMS" != "600" ]; then
+            echo "❌ Credential file permissions are $PERMS, expected 600!"
+            exit 1
+          fi
+          echo "✓ Host credential file verified with permissions 600."
+
+          echo "Running application health check..."
           sleep 15
           curl \
             --fail \
