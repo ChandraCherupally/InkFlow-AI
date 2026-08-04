@@ -83,8 +83,22 @@ jobs:
       # ---------------------------------------------------------
       # 6. Run pytest
       #    Fails the workflow immediately on any test failure.
+      #
+      #    Why env vars here:
+      #    Several clients (TavilyClient, LangChain providers) are
+      #    instantiated at module import time. Without any value
+      #    for these keys, module import raises MissingAPIKeyError
+      #    and pytest fails during collection.
       # ---------------------------------------------------------
       - name: Run tests
+        env:
+          TAVILY_API_KEY: "ci-placeholder"
+          GEMINI_API_KEY: "ci-placeholder"
+          OPENAI_API_KEY: "ci-placeholder"
+          LANGSMITH_API_KEY: "ci-placeholder"
+          LANGSMITH_TRACING: "false"
+          LANGSMITH_ENDPOINT: "https://api.smith.langchain.com"
+          LANGSMITH_PROJECT: "InkFlow-AI"
         run: uv run pytest tests/ -v
 
       # ---------------------------------------------------------
