@@ -91,6 +91,9 @@
                 <div class="workflow-item">
                     <span>09</span> Generate Images
                 </div>
+                <div class="workflow-item">
+                    <span>10</span> Publication QA
+                </div>
             </div>
 
             <!-- Execution Summary Sidebar Card -->
@@ -236,6 +239,16 @@
                         </div>
 
                         <div class="form-actions">
+                            <div class="length-select-wrapper" style="display: inline-flex; align-items: center; gap: 8px; margin-right: 8px;">
+                                <label for="lengthSelect" style="font-size: 0.85rem; color: #94A3B8; white-space: nowrap;">Length:</label>
+                                <select id="lengthSelect" style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.12); color: #F8FAFC; border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                                    <option value="3500" selected>Standard (2.5k – 5k words)</option>
+                                    <option value="2000">Short Guide (1.5k – 2.5k words)</option>
+                                    <option value="6500">Long-form (5k – 8k words)</option>
+                                    <option value="13500">Flagship (12k – 15k words)</option>
+                                </select>
+                            </div>
+
                             <button
                                 id="cancelButton"
                                 class="cancel-button"

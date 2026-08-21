@@ -4,6 +4,7 @@ Domain Pydantic Schemas for InkFlow-AI.
 Responsibilities:
 - Define structured LLM outputs and data models.
 - Validate data invariants across workflow stages.
+- Support flexible section word budgets (50–5000 words) and article length contracts.
 """
 
 from __future__ import annotations
@@ -19,6 +20,47 @@ class Task(BaseModel):
     title: str = Field(description="Section heading title.")
     goal: str = Field(description="Core objective of this section.")
     bullets: list[str] = Field(default_factory=list, description="Key bullet points to cover.")
+    target_words: int = Field(
+        default=500,
+        ge=50,
+        le=5000,
+        description="Target word count for this section (50–5000).",
+    )
+    technical_depth: str = Field(
+        default="deep_dive",
+        description="Technical depth of the section (e.g., deep_dive, implementation, conceptual, overview).",
+    )
+    requires_research: bool = Field(
+        default=False,
+        description="Whether this section requires external research evidence.",
+    )
+    requires_citations: bool = Field(
+        default=False,
+        description="Whether this section requires source citations.",
+    )
+    requires_code: bool = Field(
+        default=False,
+        description="Whether this section requires code snippets or examples.",
+    )
+    is_closing_section: bool = Field(
+        default=False,
+        description="Whether this is the dedicated final closing section.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_target_words(cls, data: dict) -> dict:
+        """Allow aliases for target_words such as estimated_word_count or word_count."""
+        if isinstance(data, dict):
+            if "target_words" not in data:
+                for alias in ("estimated_word_count", "target_word_count", "word_count"):
+                    if alias in data and data[alias] is not None:
+                        try:
+                            data["target_words"] = int(data[alias])
+                            break
+                        except (ValueError, TypeError):
+                            pass
+        return data
 
 
 class Plan(BaseModel):
@@ -27,13 +69,23 @@ class Plan(BaseModel):
     blog_title: str = Field(description="Overall click-worthy SEO title (55-65 characters).")
     subtitle: str = Field(
         default="",
-        description="Single rich, comprehensive subtitle paragraph (160-260 characters / 25-40 words) explaining the core takeaway in simple words.",
+        description="Single rich, comprehensive subtitle paragraph (140 to 220 characters / 20 to 35 words) explaining the core takeaway in simple words.",
     )
 
-    audience: str = Field(description="Target reader persona.")
-    tone: str = Field(description="Writing style and tone.")
-    blog_kind: str = Field(description="Category of article, e.g. tutorial, comparison.")
+    audience: str = Field(default="Engineers and Technical Architects", description="Target reader persona.")
+    tone: str = Field(default="Technical, analytical, and authoritative", description="Writing style and tone.")
+    blog_kind: str = Field(default="guide", description="Category of article, e.g. tutorial, comparison, architecture.")
+
+    target_word_count: int = Field(default=3500, description="Target total word count for the complete article.")
+    min_word_count: int = Field(default=2500, description="Minimum acceptable total word count.")
+    max_word_count: int = Field(default=5000, description="Maximum acceptable total word count.")
+
+    closing_section_title: str = Field(default="", description="Planner-selected context-aware closing section heading.")
+    article_thesis: str = Field(default="", description="Core engineering thesis of the article.")
+    reader_outcome: str = Field(default="", description="What an engineer should understand differently after reading.")
+
     tasks: list[Task] = Field(default_factory=list, description="Ordered list of section writing tasks.")
+    constraints: list[str] = Field(default_factory=list, description="Quality and domain constraints for the article.")
 
 
 class EvidenceItem(BaseModel):
@@ -103,3 +155,20 @@ class GeneratedImage(BaseModel):
     path: str = Field(description="Local file system path.")
     alt: str = Field(description="Alt text.")
     caption: str = Field(description="Caption text.")
+
+
+class PublicationQAResult(BaseModel):
+    """Result of deterministic publication QA verification."""
+
+    status: Literal["PASS", "FAIL"] = Field(description="Publication QA outcome.")
+    failures: list[str] = Field(default_factory=list, description="List of blocking hard failures.")
+    warnings: list[str] = Field(default_factory=list, description="List of non-blocking warnings.")
+    actual_word_count: int = Field(default=0, description="Total readable word count of final article.")
+    target_word_count: int = Field(default=0, description="Requested target word count.")
+    min_word_count: int = Field(default=0, description="Minimum acceptable word count.")
+    max_word_count: int = Field(default=0, description="Maximum acceptable word count.")
+    section_results: list[dict] = Field(default_factory=list, description="Per-section word count and status checks.")
+    image_count: int = Field(default=0, description="Total number of valid images.")
+    image_results: list[dict] = Field(default_factory=list, description="Image validation checks.")
+    closing_section: str = Field(default="", description="Detected closing section title.")
+    markdown_errors: list[str] = Field(default_factory=list, description="Structural Markdown syntax errors.")

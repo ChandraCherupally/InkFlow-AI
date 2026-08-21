@@ -2,7 +2,7 @@
 WritingGraph subgraph for InkFlow-AI.
 
 Responsibilities:
-- Write blog sections in parallel using Send() fanout.
+- Write blog sections in parallel using Send() fanout with section word budgets.
 - Assemble written section markdowns into a unified article.
 """
 
@@ -23,7 +23,16 @@ def fanout_tasks(state: BlogState):
         return "assemble_sections"
 
     return [
-        Send("worker_section", {"topic": state.topic, "task": task})
+        Send(
+            "worker_section",
+            {
+                "topic": state.topic,
+                "task": task,
+                "target_word_count": getattr(state, "target_word_count", 3500),
+                "min_word_count": getattr(state, "min_word_count", 2500),
+                "max_word_count": getattr(state, "max_word_count", 5000),
+            },
+        )
         for task in state.plan.tasks
     ]
 

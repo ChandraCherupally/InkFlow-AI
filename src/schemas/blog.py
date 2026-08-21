@@ -9,6 +9,7 @@ from src.schemas.models import (
     GlobalImagePlan,
     ImageSpec,
     Plan,
+    PublicationQAResult,
     RouterDecision,
     Task,
 )
@@ -23,5 +24,6 @@ __all__ = [
     "ImageSpec",
     "GlobalImagePlan",
     "GeneratedImage",
+    "PublicationQAResult",
     "BlogState",
 ]

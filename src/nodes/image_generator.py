@@ -4,12 +4,12 @@ Image generator node implementations for InkFlow-AI.
 Responsibilities:
 - Generate images in parallel using Send().
 - Replace placeholders inline and build final Markdown deliverable.
+- Enforce that failed image generations are tracked as publication failures, not fake successes.
 """
 
 from __future__ import annotations
 
 import logging
-
 import time
 
 from src.models.registry import get_node_config
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def image_worker(state: dict) -> dict:
     """
-    Parallel worker for generating a single image specification.
+    Parallel worker for generating a single image specification with 1 retry on failure.
     """
     spec_data = state.get("spec")
     run_id = state.get("run_id")
@@ -35,46 +35,56 @@ def image_worker(state: dict) -> dict:
 
     start_time = time.perf_counter()
     config = get_node_config(NodeType.IMAGE_GENERATOR)
+    spec = spec_data if isinstance(spec_data, ImageSpec) else ImageSpec(**spec_data)
 
-    try:
-        spec = spec_data if isinstance(spec_data, ImageSpec) else ImageSpec(**spec_data)
-        logger.info("Generating parallel image for placeholder: %s", spec.placeholder)
+    logger.info("Generating parallel image for placeholder: %s", spec.placeholder)
 
-        generated, used_model, used_provider, is_fallback = image_generator.generate_with_details(spec, run_id=run_id)
-        latency_ms = (time.perf_counter() - start_time) * 1000.0
+    for attempt in range(2):
+        try:
+            generated, used_model, used_provider, is_fallback = image_generator.generate_with_details(
+                spec, run_id=run_id
+            )
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
 
-        metric = cost_tracker.extract_image_metrics(
-            node_name="image_generator",
-            provider=used_provider,
-            model=used_model,
-            latency_ms=latency_ms,
-            images_generated=1,
-            resolution=spec.size or "2560x1440",
-            is_fallback=is_fallback,
-            status="completed",
-        )
+            metric = cost_tracker.extract_image_metrics(
+                node_name="image_generator",
+                provider=used_provider,
+                model=used_model,
+                latency_ms=latency_ms,
+                images_generated=1,
+                resolution=spec.size or "2560x1440",
+                is_fallback=is_fallback,
+                status="completed",
+            )
 
-        return {
-            "generated_images": [generated],
-            "metrics": [metric],
-        }
-    except Exception as e:
-        logger.warning("Parallel image worker failed for spec: %s", e)
-        latency_ms = (time.perf_counter() - start_time) * 1000.0
-        metric = cost_tracker.extract_image_metrics(
-            node_name="image_generator",
-            provider=config.primary.provider,
-            model=config.primary.model,
-            latency_ms=latency_ms,
-            images_generated=0,
-            resolution="2560x1440",
-            is_fallback=False,
-            status="failed",
-        )
-        return {
-            "generated_images": [],
-            "metrics": [metric],
-        }
+            return {
+                "generated_images": [generated],
+                "metrics": [metric],
+            }
+        except Exception as e:
+            logger.warning("Parallel image worker attempt %d failed for %s: %s", attempt + 1, spec.filename, e)
+            if attempt == 0:
+                time.sleep(1.0)
+                continue
+
+            latency_ms = (time.perf_counter() - start_time) * 1000.0
+            metric = cost_tracker.extract_image_metrics(
+                node_name="image_generator",
+                provider=config.primary.provider,
+                model=config.primary.model,
+                latency_ms=latency_ms,
+                images_generated=0,
+                resolution="2560x1440",
+                is_fallback=False,
+                status="failed",
+            )
+            return {
+                "generated_images": [],
+                "image_failures": [spec.filename],
+                "metrics": [metric],
+            }
+
+    return {"generated_images": [], "metrics": []}
 
 
 def assemble_publishing(state: BlogState) -> BlogState:

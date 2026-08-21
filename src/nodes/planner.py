@@ -3,13 +3,13 @@ Planner node implementation for InkFlow-AI.
 
 Responsibilities:
 - Consume topic and research evidence.
-- Produce structured Plan outline efficiently.
+- Produce structured Plan outline matching target word budget.
+- Distribute word counts deterministically across sections.
 """
 
 from __future__ import annotations
 
 import logging
-
 import time
 
 from src.models.gateway import gateway
@@ -20,22 +20,33 @@ from src.prompts.base import PromptFactory
 from src.prompts.prompts import SystemPrompts
 from src.schemas.models import Plan
 from src.schemas.state import BlogState
+from src.tools.word_counter import resolve_word_budget
 
 logger = logging.getLogger(__name__)
 
 
-def planner(state: BlogState) -> BlogState:
+def planner(state: BlogState) -> dict:
     """
-    Generate a structured blog outline with optimized research context.
+    Generate a structured blog outline with optimized research context and explicit word budget.
     """
     logger.info("Running planner node...")
     start_time = time.perf_counter()
     config = get_node_config(NodeType.PLANNER)
 
+    budget = resolve_word_budget(getattr(state, "target_word_count", 3500))
+    target_words = budget["target_word_count"]
+    min_words = budget["min_word_count"]
+    max_words = budget["max_word_count"]
+
     prompt = PromptFactory.create(
         system_prompt=SystemPrompts.PLANNER,
         human_prompt="""Topic:
 {topic}
+
+Requested Article Length:
+- Target: {target_word_count} words
+- Minimum acceptable: {min_word_count} words
+- Maximum acceptable: {max_word_count} words
 
 Research Context:
 {research}
@@ -56,6 +67,9 @@ Research Context:
     raw_res = chain.invoke(
         {
             "topic": state.topic,
+            "target_word_count": target_words,
+            "min_word_count": min_words,
+            "max_word_count": max_words,
             "research": research_context,
         }
     )
@@ -71,6 +85,42 @@ Research Context:
     if plan is None:
         raise ValueError("Planner node failed to parse structured output.")
 
+    # ---------------------------------------------------------
+    # Hard Word Budget Enforcement & Section Distribution
+    # ---------------------------------------------------------
+    plan.target_word_count = target_words
+    plan.min_word_count = min_words
+    plan.max_word_count = max_words
+
+    if plan.tasks:
+        total_allocated = sum(t.target_words for t in plan.tasks)
+        if total_allocated < min_words or total_allocated > max_words:
+            logger.info(
+                "Rebalancing section word budgets: total %d outside [%d, %d]. Target=%d",
+                total_allocated,
+                min_words,
+                max_words,
+                target_words,
+            )
+            # Rebalance proportionally so sum matches target_words
+            scale_factor = target_words / max(1, total_allocated)
+            rebalanced_sum = 0
+            for t in plan.tasks[:-1]:
+                new_target = max(50, min(5000, int(t.target_words * scale_factor)))
+                t.target_words = new_target
+                rebalanced_sum += new_target
+            # Allocate remainder to the last task (or closing section)
+            last_task = plan.tasks[-1]
+            last_task.target_words = max(50, min(5000, target_words - rebalanced_sum))
+
+        # Mark final section as closing section if not already marked
+        for t in plan.tasks[:-1]:
+            t.is_closing_section = False
+        plan.tasks[-1].is_closing_section = True
+
+        if not plan.closing_section_title:
+            plan.closing_section_title = plan.tasks[-1].title
+
     metric = cost_tracker.extract_llm_metrics(
         response=ai_msg,
         node_name="planner",
@@ -79,8 +129,16 @@ Research Context:
         latency_ms=latency_ms,
     )
 
-    logger.info("Generated outline with %d tasks.", len(plan.tasks))
+    logger.info(
+        "Generated outline with %d tasks. Planned total: %d words (target: %d).",
+        len(plan.tasks),
+        sum(t.target_words for t in plan.tasks),
+        target_words,
+    )
     return {
         "plan": plan,
+        "target_word_count": target_words,
+        "min_word_count": min_words,
+        "max_word_count": max_words,
         "metrics": [metric],
     }

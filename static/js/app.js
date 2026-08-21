@@ -46,7 +46,8 @@ const stageProgress = {
     editor: 60,
     output_guardrails: 70,
     image_planner: 85,
-    image_generator: 95,
+    image_generator: 92,
+    publication_qa: 98,
     completed: 100,
 };
 
@@ -181,6 +182,7 @@ const ORCHESTRATION_STAGES = [
     { id: "output_guardrails", label: "Output Guardrails" },
     { id: "image_planner", label: "Image Planner" },
     { id: "image_generator", label: "Generate Images" },
+    { id: "publication_qa", label: "Publication QA" },
     { id: "completed", label: "Completed" },
 ];
 
@@ -591,6 +593,15 @@ function handleEvent(event) {
             );
             break;
 
+        case "qa_complete":
+            if (event.status === "FAIL") {
+                const fails = event.qa_result?.failures || [];
+                showToast(`QA Failed: ${fails[0] || "Requirements not met"}`);
+            } else {
+                showToast("Publication QA Passed");
+            }
+            break;
+
         case "final":
             displayFinalResult(event);
             break;
@@ -641,6 +652,9 @@ function parseSSEChunk(buffer) {
 async function executeAgent(topic) {
     abortController = new AbortController();
 
+    const lengthSelect = document.getElementById("lengthSelect");
+    const targetWordCount = lengthSelect ? parseInt(lengthSelect.value, 10) : 3500;
+
     const response = await fetch("/api/run", {
         method: "POST",
 
@@ -650,6 +664,7 @@ async function executeAgent(topic) {
 
         body: JSON.stringify({
             topic,
+            target_word_count: targetWordCount,
         }),
 
         signal: abortController.signal,

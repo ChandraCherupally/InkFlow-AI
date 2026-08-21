@@ -2,7 +2,7 @@
 Root workflow graph for InkFlow-AI.
 
 Architecture:
-START -> Input Guardrails -> RoutingGraph -> ResearchGraph -> Planning Node -> WritingGraph -> PublishingGraph -> END
+START -> Input Guardrails -> RoutingGraph -> ResearchGraph -> Planning Node -> WritingGraph -> PublishingGraph -> Publication QA Node -> END
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from langgraph.graph import END, START, StateGraph
 
 from src.guardrails.input_guardrails import input_guardrails
 from src.nodes.planner import planner
+from src.nodes.publication_qa import publication_qa
 from src.schemas.state import BlogState
 from src.subgraphs.publishing_graph import publishing_graph
 from src.subgraphs.research_graph import research_graph
@@ -53,6 +54,7 @@ def build_main_graph(checkpointer=None):
                 ("src.schemas.models", "Task"),
                 ("src.schemas.models", "RouterDecision"),
                 ("src.schemas.models", "ImageSpec"),
+                ("src.schemas.models", "PublicationQAResult"),
                 ("src.schemas.state", "BlogState"),
                 ("src.schemas.blog", "EvidencePack"),
                 ("src.schemas.blog", "EvidenceItem"),
@@ -62,6 +64,7 @@ def build_main_graph(checkpointer=None):
                 ("src.schemas.blog", "Task"),
                 ("src.schemas.blog", "RouterDecision"),
                 ("src.schemas.blog", "ImageSpec"),
+                ("src.schemas.blog", "PublicationQAResult"),
                 ("src.schemas.blog", "BlogState"),
             ]
         )
@@ -78,6 +81,7 @@ def build_main_graph(checkpointer=None):
     builder.add_node("planner", planner)
     builder.add_node("writing", writing_graph)
     builder.add_node("publishing", publishing_graph)
+    builder.add_node("publication_qa", publication_qa)
 
     # ---------------------------------------------------------
     # Transitions
@@ -105,10 +109,10 @@ def build_main_graph(checkpointer=None):
     builder.add_edge("research", "planner")
     builder.add_edge("planner", "writing")
     builder.add_edge("writing", "publishing")
-    builder.add_edge("publishing", END)
+    builder.add_edge("publishing", "publication_qa")
+    builder.add_edge("publication_qa", END)
 
     return builder.compile(checkpointer=checkpointer)
 
 
 main_graph = build_main_graph()
-

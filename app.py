@@ -127,6 +127,9 @@ templates = Jinja2Templates(
 )
 
 
+from src.tools.word_counter import resolve_word_budget
+
+
 # ---------------------------------------------------------
 # Request schema
 # ---------------------------------------------------------
@@ -136,6 +139,10 @@ class AgentRunRequest(BaseModel):
         min_length=3,
         max_length=1000,
         description="The technical blog topic.",
+    )
+    target_word_count: int | None = Field(
+        default=None,
+        description="Requested target word count for the complete article (e.g. 2000, 3500, 6500, 13500).",
     )
 
 
@@ -246,6 +253,8 @@ def save_final_run_data(
     markdown: str,
     summary: dict[str, Any] | None = None,
     metrics: list[dict[str, Any]] | None = None,
+    qa_result: dict[str, Any] | None = None,
+    publication_status: str = "PASS",
 ) -> Path:
     """
     Save Markdown output and execution metadata.json.
@@ -278,6 +287,8 @@ def save_final_run_data(
         "execution_duration": (summary or {}).get("execution_duration", "0.0s"),
         "total_cost": (summary or {}).get("total_cost", 0.0),
         "total_tokens": (summary or {}).get("total_tokens", 0),
+        "publication_status": publication_status,
+        "qa_result": qa_result or {},
         "summary": summary or {},
         "metrics": metrics or [],
     }
@@ -296,7 +307,11 @@ def save_final_run_data(
 # ---------------------------------------------------------
 # LangGraph streaming
 # ---------------------------------------------------------
-def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
+def stream_workflow(
+    topic: str,
+    run_id: str,
+    target_word_count: int | None = None,
+) -> Generator[str, None, None]:
     """
     Run the InkFlow-AI LangGraph workflow and stream execution updates.
     """
@@ -306,7 +321,15 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
         }
     }
 
-    workflow_input = BlogState(topic=topic, run_id=run_id, thread_id=run_id)
+    budget = resolve_word_budget(target_word_count)
+    workflow_input = BlogState(
+        topic=topic,
+        run_id=run_id,
+        thread_id=run_id,
+        target_word_count=budget["target_word_count"],
+        min_word_count=budget["min_word_count"],
+        max_word_count=budget["max_word_count"],
+    )
     start_time_total = time.perf_counter()
 
     task_map: dict[int, dict[str, Any]] = {}
@@ -319,6 +342,9 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
             "type": "run_started",
             "run_id": run_id,
             "topic": topic,
+            "target_word_count": budget["target_word_count"],
+            "min_word_count": budget["min_word_count"],
+            "max_word_count": budget["max_word_count"],
         }
     )
 
@@ -716,12 +742,49 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
                     yield create_sse_event(
                         {
                             "type": "stage",
-                            "id": "completed",
-                            "label": "Completed",
+                            "id": "publication_qa",
+                            "label": "Publication QA Gate",
                             "status": "running",
-                            "detail": "Finalizing Markdown article...",
+                            "detail": "Validating word budget, image invariants, and publication quality...",
                         }
                     )
+
+                # =================================================
+                # Publication QA Node
+                # =================================================
+                elif node_name in ("publication_qa", "qa_gate"):
+                    pub_status = str(node_update.get("publication_status", "PASS"))
+                    qa_data = node_update.get("qa_result", {})
+                    failures = qa_data.get("failures", []) if isinstance(qa_data, dict) else []
+
+                    yield create_sse_event(
+                        {
+                            "type": "qa_complete",
+                            "status": pub_status,
+                            "qa_result": qa_data,
+                        }
+                    )
+
+                    if pub_status == "FAIL":
+                        yield create_sse_event(
+                            {
+                                "type": "stage",
+                                "id": "publication_qa",
+                                "label": "Publication QA Gate",
+                                "status": "failed",
+                                "detail": f"QA failed: {'; '.join(failures[:2]) if failures else 'Quality criteria not met.'}",
+                            }
+                        )
+                    else:
+                        yield create_sse_event(
+                            {
+                                "type": "stage",
+                                "id": "publication_qa",
+                                "label": "Publication QA Gate",
+                                "status": "completed",
+                                "detail": f"Publication QA passed cleanly ({qa_data.get('actual_word_count', 0)} words verified).",
+                            }
+                        )
 
         # -----------------------------------------------------
         # Final output check
@@ -764,18 +827,24 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
             evidence_obj = getattr(state_values, "evidence", None)
             g_warn = getattr(state_values, "guardrail_warnings", []) or []
             g_err = getattr(state_values, "guardrail_errors", []) or []
+            pub_status = getattr(state_values, "publication_status", "PASS")
+            qa_res = getattr(state_values, "qa_result", {})
         elif isinstance(state_values, dict):
             metrics = state_values.get("metrics", [])
             plan_obj = state_values.get("plan")
             evidence_obj = state_values.get("evidence")
             g_warn = state_values.get("guardrail_warnings", []) or []
             g_err = state_values.get("guardrail_errors", []) or []
+            pub_status = state_values.get("publication_status", "PASS")
+            qa_res = state_values.get("qa_result", {})
         else:
             metrics = []
             plan_obj = None
             evidence_obj = None
             g_warn = []
             g_err = []
+            pub_status = "PASS"
+            qa_res = {}
 
         if isinstance(plan_obj, dict):
             sections_count = len(plan_obj.get("tasks", []))
@@ -808,6 +877,8 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
             markdown=final_markdown,
             summary=exec_summary,
             metrics=deduped_metrics,
+            qa_result=qa_res,
+            publication_status=pub_status,
         )
 
         try:
@@ -828,6 +899,8 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
                 "type": "final",
                 "run_id": run_id,
                 "markdown": final_markdown,
+                "publication_status": pub_status,
+                "qa_result": qa_res,
                 "download_url": f"/api/runs/{run_id}/download",
             }
         )
@@ -836,6 +909,7 @@ def stream_workflow(topic: str, run_id: str,) -> Generator[str, None, None]:
             {
                 "type": "done",
                 "run_id": run_id,
+                "publication_status": pub_status,
             }
         )
 
@@ -900,6 +974,7 @@ def run_agent(request_data: AgentRunRequest):
         stream_workflow(
             topic=topic,
             run_id=run_id,
+            target_word_count=request_data.target_word_count,
         ),
         media_type="text/event-stream",
         headers={
