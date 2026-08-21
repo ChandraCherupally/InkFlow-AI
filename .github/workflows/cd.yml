@@ -132,13 +132,13 @@ jobs:
 
             echo "5. Pulling latest image..."
             cd ~/inkflow-ai
-            docker compose pull
+            sudo docker compose pull
 
             echo "6. Restarting application container..."
-            docker compose up -d --remove-orphans
+            sudo docker compose up -d --remove-orphans
 
             echo "7. Cleaning old images..."
-            docker image prune -f
+            sudo docker image prune -f
 
             echo "8. Verifying health endpoint..."
             sleep 15
