@@ -102,35 +102,33 @@ jobs:
             chmod 600 ~/inkflow-ai/vertex-key.json
 
             echo "3. Writing production docker-compose.yml..."
-            cat > ~/inkflow-ai/docker-compose.yml << 'COMPOSE'
-            services:
-              inkflow-ai:
-                image: ${IMAGE_NAME}:latest
-                ports:
-                  - "8000:8000"
-                env_file:
-                  - .env
-                volumes:
-                  - ./outputs:/app/outputs
-                  - ./vertex-key.json:/app/vertex-key.json:ro
-                restart: unless-stopped
-                working_dir: /app
-            COMPOSE
+            printf "%s\n" \
+              "services:" \
+              "  inkflow-ai:" \
+              "    image: \${IMAGE_NAME}:latest" \
+              "    ports:" \
+              "      - \"8000:8000\"" \
+              "    env_file:" \
+              "      - .env" \
+              "    volumes:" \
+              "      - ./outputs:/app/outputs" \
+              "      - ./vertex-key.json:/app/vertex-key.json:ro" \
+              "    restart: unless-stopped" \
+              "    working_dir: /app" > ~/inkflow-ai/docker-compose.yml
 
             echo "4. Writing runtime environment file..."
-            cat > ~/inkflow-ai/.env << ENV
-            GEMINI_API_KEY=${GEMINI_KEY}
-            OPENAI_API_KEY=${OPENAI_KEY}
-            TAVILY_API_KEY=${TAVILY_KEY}
-            PROJECT_ID=${GCP_PROJECT}
-            REGION=${GCP_REGION}
-            GOOGLE_APPLICATION_CREDENTIALS=/app/vertex-key.json
-            LANGSMITH_TRACING=${LS_TRACING}
-            LANGSMITH_ENDPOINT=${LS_ENDPOINT}
-            LANGSMITH_API_KEY=${LS_KEY}
-            LANGSMITH_PROJECT=${LS_PROJECT:-InkFlow-AI}
-            IMAGE_NAME=${IMG_NAME}
-            ENV
+            printf "%s\n" \
+              "GEMINI_API_KEY=${GEMINI_KEY}" \
+              "OPENAI_API_KEY=${OPENAI_KEY}" \
+              "TAVILY_API_KEY=${TAVILY_KEY}" \
+              "PROJECT_ID=${GCP_PROJECT}" \
+              "REGION=${GCP_REGION}" \
+              "GOOGLE_APPLICATION_CREDENTIALS=/app/vertex-key.json" \
+              "LANGSMITH_TRACING=${LS_TRACING}" \
+              "LANGSMITH_ENDPOINT=${LS_ENDPOINT}" \
+              "LANGSMITH_API_KEY=${LS_KEY}" \
+              "LANGSMITH_PROJECT=${LS_PROJECT:-InkFlow-AI}" \
+              "IMAGE_NAME=${IMG_NAME}" > ~/inkflow-ai/.env
 
             echo "5. Pulling latest image..."
             cd ~/inkflow-ai
